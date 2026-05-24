@@ -7,7 +7,7 @@ App({
     baseUrl: 'http://127.0.0.1:6001',
     soundEnabled: true,
     vibrateEnabled: true,
-    maxLevel: 10000
+    maxLevel: 200
   },
 
   onLaunch() {

@@ -3,7 +3,7 @@ const storage = require('../../utils/storage');
 const audio = require('../../utils/audio');
 
 const LEVELS_PER_PAGE = 15;
-const TOTAL_LEVELS = 10000;
+const TOTAL_LEVELS = 200;
 const TOTAL_PAGES = Math.ceil(TOTAL_LEVELS / LEVELS_PER_PAGE);
 
 Page({

@@ -47,6 +47,12 @@ Page({
     victoryTime: 0,
     showDefeat: false,
     defeatReason: 'timeout',
+    showReward: false,
+    // 奖励数据
+    rewardCoins: 0,
+    rewardMessage: '',
+    totalCoins: 0,
+    isFirstClear: false,
     showReward: false
   },
 
@@ -1341,7 +1347,6 @@ Page({
     const userInfo = app.globalData.userInfo || {}
     const level = this.data.level
     // 更新本地最高关卡
-    // 安全读取 highestLevel
     let savedLevel = 0
     try { savedLevel = wx.getStorageSync('highestLevel') || 0 } catch (e) {}
     if (isWin && level > savedLevel) {
@@ -1357,6 +1362,17 @@ Page({
       timeUsed,
       isWin,
       failReason: isWin ? null : this.data.defeatReason
+    }).then(res => {
+      // 处理后端返回的奖励信息
+      if (res.data && res.data.reward) {
+        const reward = res.data.reward
+        this.setData({
+          rewardCoins: reward.coinsEarned || 0,
+          rewardMessage: reward.message || '',
+          totalCoins: reward.totalCoins || 0,
+          isFirstClear: reward.isFirstClear || false
+        })
+      }
     }).catch(() => {
       // 提交失败不影响游戏体验
     })

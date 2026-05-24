@@ -16,12 +16,30 @@ Component({
     timeUsed: {
       type: Number,
       value: 0
+    },
+    // 奖励相关
+    rewardCoins: {
+      type: Number,
+      value: 0
+    },
+    rewardMessage: {
+      type: String,
+      value: ''
+    },
+    totalCoins: {
+      type: Number,
+      value: 0
+    },
+    isFirstClear: {
+      type: Boolean,
+      value: false
     }
   },
 
   data: {
     animData: {},
-    showStars: false
+    showStars: false,
+    showReward: false
   },
 
   lifetimes: {
@@ -30,6 +48,19 @@ Component({
       setTimeout(() => {
         this.setData({ showStars: true });
       }, 300);
+    }
+  },
+
+  observers: {
+    'show, rewardCoins'(show, coins) {
+      if (show && coins > 0) {
+        // 奖励动画延迟出现
+        setTimeout(() => {
+          this.setData({ showReward: true });
+        }, 800);
+      } else {
+        this.setData({ showReward: false });
+      }
     }
   },
 

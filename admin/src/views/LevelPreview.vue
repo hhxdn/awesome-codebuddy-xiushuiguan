@@ -7,7 +7,7 @@
           <el-input-number
             v-model="currentLevel"
             :min="1"
-            :max="10000"
+            :max="200"
             controls-position="right"
             style="width: 160px;"
             @change="handleLevelChange"
@@ -15,7 +15,7 @@
         </el-form-item>
         <el-form-item>
           <el-button icon="el-icon-arrow-left" @click="handlePrevLevel" :disabled="currentLevel <= 1">上一关</el-button>
-          <el-button icon="el-icon-arrow-right" @click="handleNextLevel" :disabled="currentLevel >= 10000">下一关</el-button>
+          <el-button icon="el-icon-arrow-right" @click="handleNextLevel" :disabled="currentLevel >= 200">下一关</el-button>
           <el-button type="primary" icon="el-icon-search" @click="loadLevelDetail">查看详情</el-button>
         </el-form-item>
       </el-form>
@@ -82,7 +82,7 @@
 
     <!-- 难度曲线图 -->
     <div class="chart-card">
-      <h4 class="section-title">关卡难度曲线 (1-100关)</h4>
+      <h4 class="section-title">关卡难度曲线 (1-50关)</h4>
       <div ref="difficultyChart" style="width: 100%; height: 380px;"></div>
     </div>
   </div>
@@ -137,17 +137,15 @@ export default {
         // 后端未就绪时根据关卡号生成模拟数据
         const level = this.currentLevel
         const sceneTypes = ['住宅区', '商业区', '工业区', '地下管道', '河边管道']
-        const pipeCount = Math.min(30, 2 + Math.floor(level / 5))
-        const leakCount = Math.min(pipeCount, Math.max(1, Math.floor(level / 8)))
         this.levelDetail = {
-          pipeCount,
-          leakCount,
-          wrenchCount: Math.max(2, 5 - Math.floor(level / 1000)),
-          timeLimit: Math.max(30, Math.floor(120 - level * 0.015)),
-          waterSpeed: Math.floor(1 + level * 0.001),
-          burstRate: Math.min(30, Math.floor(0.2 + level * 0.3)),
+          pipeCount: Math.min(30, 2 + Math.floor(level / 3)),
+          leakCount: Math.min(Math.min(30, 2 + Math.floor(level / 3)), Math.max(1, Math.floor(level / 4))),
+          wrenchCount: Math.max(2, 6 - Math.floor(level / 40)),
+          timeLimit: Math.max(25, Math.floor(120 - level * 0.3)),
+          waterSpeed: Math.floor(1 + level * 0.005),
+          burstRate: Math.min(35, Math.floor(0.5 + level * 0.15)),
           sceneType: sceneTypes[level % 5],
-          difficulty: Math.min(5, Math.ceil(level / 20))
+          difficulty: Math.min(5, Math.ceil(level / 40))
         }
         this.generateScene()
         this.$nextTick(() => {
@@ -159,8 +157,8 @@ export default {
       const pipes = []
       const leaks = []
       const workers = []
-      const pipeCount = Math.min(8, 2 + Math.floor(this.currentLevel / 5))
-      const leakCount = Math.min(pipeCount, Math.max(1, Math.floor(this.currentLevel / 8)))
+      const pipeCount = Math.min(8, 2 + Math.floor(this.currentLevel / 3))
+      const leakCount = Math.min(pipeCount, Math.max(1, Math.floor(this.currentLevel / 4)))
       const workerCount = Math.min(3, 1 + Math.floor(this.currentLevel / 10))
 
       for (let i = 0; i < pipeCount; i++) {
@@ -205,10 +203,10 @@ export default {
       const levels = []
       const pipeCounts = []
       const leakCounts = []
-      for (let i = 1; i <= 100; i++) {
+      for (let i = 1; i <= 50; i++) {
         levels.push(`第${i}关`)
-        pipeCounts.push(Math.min(30, 2 + Math.floor(i / 5)))
-        leakCounts.push(Math.min(Math.min(30, 2 + Math.floor(i / 5)), Math.max(1, Math.floor(i / 8))))
+        pipeCounts.push(Math.min(30, 2 + Math.floor(i / 3)))
+        leakCounts.push(Math.min(Math.min(30, 2 + Math.floor(i / 3)), Math.max(1, Math.floor(i / 4))))
       }
       const option = {
         tooltip: {
@@ -282,7 +280,7 @@ export default {
       }
     },
     handleNextLevel() {
-      if (this.currentLevel < 10000) {
+      if (this.currentLevel < 200) {
         this.currentLevel++
         this.loadLevelDetail()
       }

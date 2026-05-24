@@ -23,6 +23,24 @@
       <text class="info-item">用时 {{timeUsed}} 秒</text>
     </view>
 
+    <!-- 奖励展示区 -->
+    <view class="reward-area {{showReward ? 'show' : ''}}" wx:if="{{rewardCoins > 0}}">
+      <view class="reward-header">
+        <text class="reward-icon">💰</text>
+        <text class="reward-title">通关奖励</text>
+        <text class="first-badge" wx:if="{{isFirstClear}}">首次通关</text>
+      </view>
+      <view class="reward-coins">
+        <text class="coins-num">+{{rewardCoins}}</text>
+        <text class="coins-label">金币</text>
+      </view>
+      <view class="reward-msg">{{rewardMessage}}</view>
+      <view class="reward-total" wx:if="{{totalCoins > 0}}">
+        <text>当前金币：</text>
+        <text class="total-num">{{totalCoins}}</text>
+      </view>
+    </view>
+
     <!-- 按钮 -->
     <view class="victory-buttons">
       <button class="btn-success victory-btn-main" bindtap="onNextLevel">

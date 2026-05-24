@@ -5,10 +5,10 @@
     <view class="header-info">
       <text class="info-label">最高通关：</text>
       <text class="info-value">第{{highestLevel}}关</text>
-      <text class="info-total"> / {{10000}}关</text>
+      <text class="info-total"> / {{200}}关</text>
     </view>
     <view class="header-page">
-      <text class="page-info" bindtap="onGoToLatest">第{{currentPage * 15 + 1}}-{{(currentPage + 1) * 15 > 10000 ? 10000 : (currentPage + 1) * 15}}关</text>
+      <text class="page-info" bindtap="onGoToLatest">第{{currentPage * 15 + 1}}-{{(currentPage + 1) * 15 > 200 ? 200 : (currentPage + 1) * 15}}关</text>
       <text class="page-tip" bindtap="onShowTip">❓</text>
     </view>
   </view>

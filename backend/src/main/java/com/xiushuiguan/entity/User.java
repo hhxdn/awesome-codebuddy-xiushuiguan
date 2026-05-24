@@ -22,6 +22,9 @@ public class User {
 
     private Integer totalStars;
 
+    /** 金币数 */
+    private Integer coins;
+
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createdAt;
 

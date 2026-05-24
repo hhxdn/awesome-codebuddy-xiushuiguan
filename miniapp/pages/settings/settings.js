@@ -84,7 +84,7 @@ Page({
   onAbout() {
     wx.showModal({
       title: '关于水管维修工',
-      content: '版本：1.0.0\n\n一款休闲闯关小游戏\n在10000关的挑战中\n成为最强的水管维修工！\n\n©2026 水管维修工',
+      content: '版本：1.0.0\n\n一款休闲闯关小游戏\n在200关的挑战中\n成为最强的水管维修工！\n\n©2026 水管维修工',
       showCancel: false,
       confirmText: '好的'
     });

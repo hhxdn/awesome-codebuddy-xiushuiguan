@@ -1,56 +1,67 @@
 // utils/level.js - 关卡生成算法
-// 支持10000关，根据关卡号计算各项参数
+// 支持200关，每关参数变化明显，确保玩家感受不同
+
+/**
+ * 奖励配置：根据星级和关卡号计算奖励
+ */
+const REWARD_CONFIG = {
+  coinsPerStar: [5, 15, 30],      // [1星, 2星, 3星] 基础金币
+  levelBonus: [0, 1, 2],          // 每关额外金币乘数
+  firstClearBonus: 20,            // 首次通关额外金币
+};
 
 /**
  * 获取关卡配置
- * @param {number} n - 关卡号 (1-10000)
+ * @param {number} n - 关卡号 (1-200)
  * @returns {object} 关卡配置
  */
 function getLevelConfig(n) {
-  if (n < 1 || n > 10000) {
+  if (n < 1 || n > 200) {
     n = 1;
   }
 
-  const pipeCount = Math.min(30, 2 + Math.floor(n / 5));
-  const leakCount = Math.min(pipeCount, Math.max(1, Math.floor(n / 8)));
+  // 每3关增加1个水管，每关都有变化感
+  const pipeCount = Math.min(30, 2 + Math.floor(n / 3));
+  // 每4关增加1个漏水点，确保每关不同
+  const leakCount = Math.min(pipeCount, Math.max(1, Math.floor(n / 4)));
 
   const config = {
     level: n,
-    // 场景类型：根据关卡号轮换（5种场景，每关轮换）
+    // 场景类型：5种场景逐关轮换
     sceneType: n % 5,
 
-    // 水管总数：基础2个 + 每5关增加1个，上限30个
+    // 水管总数：基础2个 + 每3关增加1个，上限30个
     pipeCount,
 
-    // 初始漏水数：每8关增加1个，不超过水管总数，最少1个
+    // 初始漏水数：每4关增加1个，不超过水管总数
     leakCount,
 
-    // 单次领取扳手数：开始时5个，每1000关减少1个，最少2个
-    wrenchPerPickup: Math.max(2, 5 - Math.floor(n / 1000)),
+    // 单次领取扳手数：开始6个，每40关减少1个，最少2个
+    wrenchPerPickup: Math.max(2, 6 - Math.floor(n / 40)),
 
-    // 关卡时限（秒）：开始120秒，每关减少0.015秒，最低30秒
-    timeLimit: Math.max(30, Math.floor(120 - n * 0.015)),
+    // 关卡时限（秒）：开始120秒，每关减少0.3秒，最低25秒
+    timeLimit: Math.max(25, Math.floor(120 - n * 0.3)),
 
-    // 积水速度系数：基础1，每关增加0.001
-    waterSpeed: 1 + n * 0.001,
+    // 积水速度系数：基础1，每关增加0.005（明显增长）
+    waterSpeed: 1 + n * 0.005,
 
-    // 爆管概率：最大0.3，起始0.002，每关增加0.003
-    burstProb: Math.min(0.3, 0.002 + n * 0.003),
+    // 爆管概率：最大0.35，起始0.005，每关增加0.0015
+    burstProb: Math.min(0.35, 0.005 + n * 0.0015),
 
-    // 维修所需时间（帧数，60fps）：随关卡增加而增加
-    repairFrames: Math.max(20, 40 + Math.floor(n / 8)),
+    // 维修所需时间（帧数，60fps）：每3关增加1帧
+    repairFrames: Math.max(15, 30 + Math.floor(n / 3)),
 
-    // 积水扩散间隔（帧）：随速度系数递减
-    waterSpreadInterval: Math.max(8, Math.floor(25 / (1 + n * 0.002))),
+    // 积水扩散间隔（帧）：随关卡递减
+    waterSpreadInterval: Math.max(6, Math.floor(20 / (1 + n * 0.005))),
 
     // 血量掉落速度：踩积水每秒扣HP
     hpLossRate: 10,
 
-    // 星级评定时间阈值（秒）
+    // 星级评定时间阈值（秒）：每关递增0.1秒
     starThresholds: {
-      three: Math.floor(n * 0.02 + 10),
-      two: Math.floor(n * 0.02 + 20),
-      one: Math.floor(n * 0.02 + 30)
+      three: Math.floor(n * 0.1 + 8),
+      two: Math.floor(n * 0.1 + 18),
+      one: Math.floor(n * 0.1 + 28)
     }
   };
 
@@ -104,9 +115,43 @@ function isSolvable(config) {
   return totalWrenches >= totalNeed;
 }
 
+/**
+ * 计算通关奖励
+ * @param {number} stars - 星级 (1-3)
+ * @param {number} level - 关卡号
+ * @param {boolean} isFirstClear - 是否首次通关
+ * @returns {object} { coins, items, message }
+ */
+function calcReward(stars, level, isFirstClear) {
+  const starIndex = Math.min(stars, 3) - 1;
+  let coins = REWARD_CONFIG.coinsPerStar[starIndex] + level * REWARD_CONFIG.levelBonus[starIndex];
+  if (isFirstClear) {
+    coins += REWARD_CONFIG.firstClearBonus;
+  }
+
+  let message = '';
+  if (stars === 3) {
+    message = isFirstClear
+      ? `完美通关！获得 ${coins} 金币（含首次通关奖励）`
+      : `完美通关！获得 ${coins} 金币`;
+  } else if (stars === 2) {
+    message = isFirstClear
+      ? `不错表现！获得 ${coins} 金币（含首次通关奖励）`
+      : `不错表现！获得 ${coins} 金币`;
+  } else {
+    message = isFirstClear
+      ? `通关成功！获得 ${coins} 金币（含首次通关奖励）`
+      : `通关成功！获得 ${coins} 金币`;
+  }
+
+  return { coins, items: [], message };
+}
+
 module.exports = {
   getLevelConfig,
   calcStars,
+  calcReward,
   getLevelDescription,
-  isSolvable
+  isSolvable,
+  REWARD_CONFIG
 };

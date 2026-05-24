@@ -208,7 +208,7 @@ export default {
       } catch (error) {
         // 后端未就绪时使用模拟数据
         const allConfig = [
-          { configKey: 'game.maxLevel', configValue: '10000', description: '最大关卡数', editing: false, valueType: 'number', group: 'game' },
+          { configKey: 'game.maxLevel', configValue: '200', description: '最大关卡数', editing: false, valueType: 'number', group: 'game' },
           { configKey: 'game.timeLimit', configValue: '60', description: '每关时间限制(秒)', editing: false, valueType: 'number', group: 'game' },
           { configKey: 'game.star3Threshold', configValue: '10', description: '三星通关剩余时间阈值(秒)', editing: false, valueType: 'number', group: 'game' },
           { configKey: 'game.star2Threshold', configValue: '20', description: '二星通关剩余时间阈值(秒)', editing: false, valueType: 'number', group: 'game' },
@@ -234,7 +234,7 @@ export default {
         this.splitConfigGroups(allConfig)
 
         this.configHistory = [
-          { configKey: 'game.maxLevel', oldValue: '10', newValue: '10000', operator: 'admin', modifyTime: '2026-05-24 10:30:00' },
+          { configKey: 'game.maxLevel', oldValue: '10', newValue: '200', operator: 'admin', modifyTime: '2026-05-24 10:30:00' },
           { configKey: 'game.timeLimit', oldValue: '90', newValue: '60', operator: 'admin', modifyTime: '2026-05-23 14:20:00' },
           { configKey: 'ad.rewardVideoEnabled', oldValue: 'false', newValue: 'true', operator: 'admin', modifyTime: '2026-05-22 09:15:00' },
           { configKey: 'system.maintenance', oldValue: 'true', newValue: 'false', operator: 'admin', modifyTime: '2026-05-21 16:00:00' }

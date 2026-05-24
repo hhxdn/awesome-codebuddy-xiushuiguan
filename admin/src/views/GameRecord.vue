@@ -16,7 +16,7 @@
           <el-input-number
             v-model="filterForm.minLevel"
             :min="1"
-            :max="10000"
+            :max="200"
             placeholder="最小"
             style="width: 110px;"
             controls-position="right"
@@ -25,7 +25,7 @@
           <el-input-number
             v-model="filterForm.maxLevel"
             :min="1"
-            :max="10000"
+            :max="200"
             placeholder="最大"
             style="width: 110px;"
             controls-position="right"

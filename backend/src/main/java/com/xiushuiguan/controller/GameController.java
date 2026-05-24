@@ -20,16 +20,16 @@ public class GameController {
 
     @GetMapping("/level/{n}")
     public R<Map<String, Object>> getLevelConfig(@PathVariable Integer n) {
-        if (n < 1 || n > 10000) {
-            return R.fail("关卡号必须在1-10000之间");
+        if (n < 1 || n > 200) {
+            return R.fail("关卡号必须在1-200之间");
         }
 
-        int pipeCount = Math.min(30, 2 + n / 5);
-        int initialLeaks = Math.min(pipeCount, Math.max(1, n / 8));
-        int wrenchPerPickup = Math.max(2, 5 - n / 1000);
-        int timeLimit = (int) Math.max(30, 120 - n * 0.015);
-        double waterSpeed = 1 + n * 0.001;
-        double burstProbability = Math.min(0.3, 0.002 + n * 0.003);
+        int pipeCount = Math.min(30, 2 + n / 3);
+        int initialLeaks = Math.min(pipeCount, Math.max(1, n / 4));
+        int wrenchPerPickup = Math.max(2, 6 - n / 40);
+        int timeLimit = (int) Math.max(25, 120 - n * 0.3);
+        double waterSpeed = 1 + n * 0.005;
+        double burstProbability = Math.min(0.35, 0.005 + n * 0.0015);
         int sceneIndex = n % 5;
 
         String sceneType;
@@ -76,9 +76,19 @@ public class GameController {
     }
 
     @PostMapping("/result")
-    public R<GameRecord> submitResult(@RequestBody GameResultDTO dto) {
+    public R<Map<String, Object>> submitResult(@RequestBody GameResultDTO dto) {
         GameRecord record = gameRecordService.submitResult(dto);
-        return R.ok(record);
+        Map<String, Object> result = new HashMap<>();
+        result.put("record", record);
+        if (dto.getIsWin() != null && dto.getIsWin()) {
+            Map<String, Object> reward = new HashMap<>();
+            reward.put("coinsEarned", dto.getCoinsEarned());
+            reward.put("totalCoins", dto.getTotalCoins());
+            reward.put("message", dto.getRewardMessage());
+            reward.put("isFirstClear", dto.getIsFirstClear());
+            result.put("reward", reward);
+        }
+        return R.ok(result);
     }
 
     @GetMapping("/records")

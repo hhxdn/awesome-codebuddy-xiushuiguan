@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS `user` (
     `avatar_url` VARCHAR(512) DEFAULT '' COMMENT '头像URL',
     `highest_level` INT DEFAULT 0 COMMENT '最高通关关卡',
     `total_stars` INT DEFAULT 0 COMMENT '总星数',
+    `coins` INT DEFAULT 0 COMMENT '金币数',
     `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (`id`),
@@ -49,5 +50,5 @@ CREATE TABLE IF NOT EXISTS `game_config` (
 INSERT INTO `game_config` (`config_key`, `config_value`, `description`) VALUES
 ('wx_appid', '', '微信小程序AppID'),
 ('wx_secret', '', '微信小程序AppSecret'),
-('max_level', '10000', '最大关卡数'),
+('max_level', '200', '最大关卡数'),
 ('version', '1.0.0', '游戏版本号');
