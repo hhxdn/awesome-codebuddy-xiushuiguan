@@ -1,5 +1,6 @@
 const app = getApp()
 const levelUtil = require('../../utils/level')
+const audio = require('../../utils/audio')
 
 // 工具函数：圆角矩形
 function roundRect(ctx, x, y, w, h, r) {
@@ -106,10 +107,12 @@ Page({
 
   onUnload() {
     this.stopAllTimers()
+    audio.stopAll()
   },
 
   // 初始化关卡
   initLevel(level) {
+    audio.stopAll()
     const config = levelUtil.getLevelConfig(level)
     this.setData({
       level,
@@ -254,6 +257,10 @@ Page({
         timeLeft = 0
         this.gameOver('timeout')
       }
+      // 倒计时10秒警告音效
+      if (timeLeft > 0 && timeLeft <= 10) {
+        audio.play('COUNTDOWN')
+      }
       this.setData({ timeLeft })
     }, 1000)
 
@@ -345,6 +352,7 @@ Page({
     }
 
     // 自动移动到水管位置并维修
+    audio.play('CLICK')
     this.workerTargetX = nearestPipe.x
     this.workerTargetY = nearestPipe.y
     this._autoRepairPipe = nearestPipe
@@ -469,6 +477,7 @@ Page({
         if (candidates.length > 0) {
           const pipe = candidates[Math.floor(Math.random() * candidates.length)]
           pipe.isLeaking = true
+          audio.play('BURST')
         }
       }
     }
@@ -1234,6 +1243,7 @@ Page({
   // 领取扳手
   onPickupWrench() {
     if (this.data.gameState !== STATE.PLAYING) return
+    audio.play('WRENCH')
     const pickupCount = this.data.levelConfig.wrenchPerPickup
     this.setData({
       wrenchCount: this.data.wrenchCount + pickupCount,
@@ -1271,6 +1281,7 @@ Page({
   // 执行维修动作
   doRepair(pipe) {
     pipe.isRepaired = true
+    audio.play('REPAIR')
     this.spawnRepairParticles(pipe.x, pipe.y)
     this.setData({
       wrenchCount: this.data.wrenchCount - 1,
@@ -1305,6 +1316,7 @@ Page({
   // 游戏结束
   gameOver(reason) {
     if (this.data.gameState !== STATE.PLAYING) return
+    audio.play('FAIL')
     this.stopAllTimers()
     this.setData({
       gameState: STATE.LOSE,
