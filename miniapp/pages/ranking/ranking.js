@@ -14,20 +14,9 @@ Page({
     userInfo: null
   },
 
-  _active: true,
-
   onShow() {
-    this._active = true
     this.loadRanking();
     this.updateUserInfo();
-  },
-
-  onHide() {
-    this._active = false
-  },
-
-  onUnload() {
-    this._active = false
   },
 
   onPullDownRefresh() {
@@ -57,8 +46,6 @@ Page({
         limit: 50
       });
 
-      if (!this._active) return
-
       const list = (data.list || data || []).map((item, index) => ({
         rank: index + 1,
         avatarUrl: item.avatarUrl || '',
@@ -77,7 +64,6 @@ Page({
         showOpenData: false
       });
     } catch (e) {
-      if (!this._active) return
       // 后端不可用时，使用本地数据和开放数据域
       this.setData({
         loading: false,

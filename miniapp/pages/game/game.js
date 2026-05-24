@@ -52,13 +52,10 @@ Page({
   _lastHp: 100,
   _canvasReady: false,
   _pendingStart: false,
-  _active: true,          // 页面存活标志
-  _gameLoopRafId: null,   // 追踪 requestAnimationFrame ID
-  _rewardTimeout: null,   // 追踪激励超时
 
   onLoad(options) {
     const level = parseInt(options.level) || 1
-    this.safeSetData({ level })
+    this.setData({ level })
     this.initLevel(level)
   },
 
@@ -73,11 +70,6 @@ Page({
       this.stopAllTimers()
       this._wasPlaying = true
     }
-    // 清除待执行的激励超时（避免后台恢复计时器）
-    if (this._rewardTimeout) {
-      clearTimeout(this._rewardTimeout)
-      this._rewardTimeout = null
-    }
   },
 
   onShow() {
@@ -90,25 +82,13 @@ Page({
   },
 
   onUnload() {
-    this._active = false
     this.stopAllTimers()
-    if (this._rewardTimeout) {
-      clearTimeout(this._rewardTimeout)
-      this._rewardTimeout = null
-    }
-  },
-
-  // 安全的 setData，页面销毁后不再调用
-  safeSetData(data) {
-    if (this._active) {
-      this.setData(data)
-    }
   },
 
   // 初始化关卡
   initLevel(level) {
     const config = levelUtil.getLevelConfig(level)
-    this.safeSetData({
+    this.setData({
       level,
       levelConfig: config,
       timeLeft: config.timeLimit,
@@ -214,7 +194,7 @@ Page({
 
   // 开始游戏
   startGame() {
-    this.safeSetData({ gameState: STATE.PLAYING })
+    this.setData({ gameState: STATE.PLAYING })
     this.startTimers()
     this.startGameLoop()
   },
@@ -229,13 +209,11 @@ Page({
     this._cancelRaf = cancelRaf
 
     const loop = () => {
-      if (!this._active || this.data.gameState !== STATE.PLAYING) return
+      if (this.data.gameState !== STATE.PLAYING) return
       this.frameCount++
       this.update()
       this.render()
-      if (this._active) {
-        this.renderTimer = raf(loop)
-      }
+      this.renderTimer = raf(loop)
     }
     loop()
   },
@@ -244,33 +222,32 @@ Page({
   startTimers() {
     // 倒计时
     this.gameTimer = setInterval(() => {
-      if (!this._active || this.data.gameState !== STATE.PLAYING) return
+      if (this.data.gameState !== STATE.PLAYING) return
       let timeLeft = this.data.timeLeft - 1
       if (timeLeft <= 0) {
         timeLeft = 0
         this.gameOver('timeout')
       }
-      this.safeSetData({ timeLeft })
+      this.setData({ timeLeft })
     }, 1000)
 
     // 积水扩散
     this.waterTimer = setInterval(() => {
-      if (!this._active || this.data.gameState !== STATE.PLAYING) return
+      if (this.data.gameState !== STATE.PLAYING) return
       this.spreadWater()
     }, 500)
   },
 
   // 停止所有计时器
   stopAllTimers() {
-    if (this.gameTimer) { clearInterval(this.gameTimer); this.gameTimer = null }
-    if (this.waterTimer) { clearInterval(this.waterTimer); this.waterTimer = null }
+    if (this.gameTimer) clearInterval(this.gameTimer)
+    if (this.waterTimer) clearInterval(this.waterTimer)
     if (this.renderTimer) {
       if (this._cancelRaf) {
         this._cancelRaf(this.renderTimer)
       } else {
         clearTimeout(this.renderTimer)
       }
-      this.renderTimer = null
     }
   },
 
@@ -323,7 +300,7 @@ Page({
     if (this._lastNearCar !== nearCar || this._lastNearLeak !== nearLeakingPipe) {
       this._lastNearCar = nearCar
       this._lastNearLeak = nearLeakingPipe
-      this.safeSetData({
+      this.setData({
         showPickupBtn: nearCar && !nearLeakingPipe,
         showRepairBtn: nearLeakingPipe && !nearCar
       })
@@ -343,14 +320,14 @@ Page({
           let hp = this.data.hp - (10 / 60) // 每秒10点，60fps
           if (hp <= 0) {
             hp = 0
-            this.safeSetData({ hp: 0 })
+            this.setData({ hp: 0 })
             this.gameOver('hp')
             return
           }
           // 节流：每 15 帧（约 0.25 秒）才 setData 一次
           if (this.frameCount % 15 === 0 || Math.abs(this._lastHp - hp) > 2) {
             this._lastHp = hp
-            this.safeSetData({ hp: Math.max(0, Math.floor(hp)) })
+            this.setData({ hp: Math.max(0, Math.floor(hp)) })
           } else {
             this.data.hp = Math.max(0, Math.floor(hp))
           }
@@ -626,7 +603,7 @@ Page({
   onPickupWrench() {
     if (this.data.gameState !== STATE.PLAYING) return
     const pickupCount = this.data.levelConfig.wrenchPerPickup
-    this.safeSetData({
+    this.setData({
       wrenchCount: this.data.wrenchCount + pickupCount,
       showPickupBtn: false
     })
@@ -656,7 +633,7 @@ Page({
 
     if (nearestPipe) {
       nearestPipe.isRepaired = true
-      this.safeSetData({
+      this.setData({
         wrenchCount: this.data.wrenchCount - 1,
         showRepairBtn: false
       })
@@ -675,7 +652,7 @@ Page({
       const timeUsed = this.data.levelConfig.timeLimit - this.data.timeLeft
       const stars = levelUtil.calcStars(timeUsed, this.data.levelConfig)
 
-      this.safeSetData({
+      this.setData({
         gameState: STATE.WIN,
         showVictory: true,
         victoryStars: stars,
@@ -691,7 +668,7 @@ Page({
   gameOver(reason) {
     if (this.data.gameState !== STATE.PLAYING) return
     this.stopAllTimers()
-    this.safeSetData({
+    this.setData({
       gameState: STATE.LOSE,
       showDefeat: true,
       defeatReason: reason
@@ -727,11 +704,11 @@ Page({
 
   // 弹窗事件 - 胜利
   onVictoryNext() {
-    this.safeSetData({ showVictory: false })
+    this.setData({ showVictory: false })
     wx.redirectTo({ url: `/pages/game/game?level=${this.data.level + 1}` })
   },
   onVictoryReplay() {
-    this.safeSetData({ showVictory: false })
+    this.setData({ showVictory: false })
     this.initLevel(this.data.level)
     this.startGame()
   },
@@ -739,17 +716,17 @@ Page({
     // 微信分享（需要button open-type="share"）
   },
   onVictoryWatchAd() {
-    this.safeSetData({ showVictory: false, showReward: true })
+    this.setData({ showVictory: false, showReward: true })
   },
 
   // 弹窗事件 - 失败
   onDefeatRetry() {
-    this.safeSetData({ showDefeat: false })
+    this.setData({ showDefeat: false })
     this.initLevel(this.data.level)
     this.startGame()
   },
   onDefeatWatchAd() {
-    this.safeSetData({ showDefeat: false, showReward: true })
+    this.setData({ showDefeat: false, showReward: true })
   },
 
   // 弹窗事件 - 激励视频
@@ -757,24 +734,19 @@ Page({
     const rewardId = e.detail.type
     // 模拟观看广告
     wx.showToast({ title: '广告播放中...', icon: 'loading', duration: 1500 })
-    // 清除之前的超时（避免重复）
-    if (this._rewardTimeout) clearTimeout(this._rewardTimeout)
-    this._rewardTimeout = setTimeout(() => {
-      this._rewardTimeout = null
-      // 页面已销毁则放弃
-      if (!this._active) return
-      this.safeSetData({ showReward: false })
+    setTimeout(() => {
+      this.setData({ showReward: false })
       switch (rewardId) {
         case 'wrench':
-          this.safeSetData({ wrenchCount: this.data.wrenchCount + 3 })
+          this.setData({ wrenchCount: this.data.wrenchCount + 3 })
           wx.showToast({ title: '+3 🔧', icon: 'success' })
           break
         case 'time':
-          this.safeSetData({ timeLeft: this.data.timeLeft + 30 })
+          this.setData({ timeLeft: this.data.timeLeft + 30 })
           wx.showToast({ title: '+30秒', icon: 'success' })
           break
         case 'hp':
-          this.safeSetData({ hp: this.data.maxHp, gameState: STATE.PLAYING })
+          this.setData({ hp: this.data.maxHp, gameState: STATE.PLAYING })
           this.startTimers()
           this.startGameLoop()
           wx.showToast({ title: '满血复活！', icon: 'success' })
@@ -783,16 +755,16 @@ Page({
     }, 1500)
   },
   onCloseReward() {
-    this.safeSetData({ showReward: false })
+    this.setData({ showReward: false })
   },
 
   // 暂停/继续
   togglePause() {
     if (this.data.gameState === STATE.PLAYING) {
       this.stopAllTimers()
-      this.safeSetData({ gameState: STATE.PAUSED })
+      this.setData({ gameState: STATE.PAUSED })
     } else if (this.data.gameState === STATE.PAUSED) {
-      this.safeSetData({ gameState: STATE.PLAYING })
+      this.setData({ gameState: STATE.PLAYING })
       this.startTimers()
       this.startGameLoop()
     }

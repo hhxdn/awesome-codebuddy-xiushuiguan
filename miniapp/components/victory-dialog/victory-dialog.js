@@ -27,15 +27,9 @@ Component({
   lifetimes: {
     attached() {
       // 星星动画延迟显示
-      this._starTimer = setTimeout(() => {
+      setTimeout(() => {
         this.setData({ showStars: true });
       }, 300);
-    },
-    detached() {
-      if (this._starTimer) {
-        clearTimeout(this._starTimer)
-        this._starTimer = null
-      }
     }
   },
 
