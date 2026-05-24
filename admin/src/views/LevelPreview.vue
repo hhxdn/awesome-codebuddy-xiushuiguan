@@ -137,15 +137,16 @@ export default {
         // 后端未就绪时根据关卡号生成模拟数据
         const level = this.currentLevel
         const sceneTypes = ['住宅区', '商业区', '工业区', '地下管道', '河边管道']
+        const pipeCount = Math.min(40, 3 + Math.floor(level / 2))
         this.levelDetail = {
-          pipeCount: Math.min(30, 2 + Math.floor(level / 3)),
-          leakCount: Math.min(Math.min(30, 2 + Math.floor(level / 3)), Math.max(1, Math.floor(level / 4))),
-          wrenchCount: Math.max(2, 6 - Math.floor(level / 40)),
-          timeLimit: Math.max(25, Math.floor(120 - level * 0.3)),
-          waterSpeed: Math.floor(1 + level * 0.005),
-          burstRate: Math.min(35, Math.floor(0.5 + level * 0.15)),
+          pipeCount: pipeCount,
+          leakCount: Math.min(pipeCount, Math.max(1, 1 + Math.floor(level / 2))),
+          wrenchCount: Math.max(1, 8 - Math.floor(level / 25)),
+          timeLimit: Math.max(15, Math.floor(150 - level * 0.7)),
+          waterSpeed: (1 + level * 0.015).toFixed(1),
+          burstRate: Math.min(50, Math.floor(1 + level * 0.3)),
           sceneType: sceneTypes[level % 5],
-          difficulty: Math.min(5, Math.ceil(level / 40))
+          difficulty: Math.min(5, Math.ceil(level / 30))
         }
         this.generateScene()
         this.$nextTick(() => {
@@ -157,9 +158,9 @@ export default {
       const pipes = []
       const leaks = []
       const workers = []
-      const pipeCount = Math.min(8, 2 + Math.floor(this.currentLevel / 3))
-      const leakCount = Math.min(pipeCount, Math.max(1, Math.floor(this.currentLevel / 4)))
-      const workerCount = Math.min(3, 1 + Math.floor(this.currentLevel / 10))
+      const pipeCount = Math.min(10, 3 + Math.floor(this.currentLevel / 2))
+      const leakCount = Math.min(pipeCount, Math.max(1, 1 + Math.floor(this.currentLevel / 2)))
+      const workerCount = Math.min(4, 1 + Math.floor(this.currentLevel / 15))
 
       for (let i = 0; i < pipeCount; i++) {
         const isHorizontal = Math.random() > 0.4
@@ -205,8 +206,9 @@ export default {
       const leakCounts = []
       for (let i = 1; i <= 50; i++) {
         levels.push(`第${i}关`)
-        pipeCounts.push(Math.min(30, 2 + Math.floor(i / 3)))
-        leakCounts.push(Math.min(Math.min(30, 2 + Math.floor(i / 3)), Math.max(1, Math.floor(i / 4))))
+        const pc = Math.min(40, 3 + Math.floor(i / 2))
+        pipeCounts.push(pc)
+        leakCounts.push(Math.min(pc, Math.max(1, 1 + Math.floor(i / 2))))
       }
       const option = {
         tooltip: {

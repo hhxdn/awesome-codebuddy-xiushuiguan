@@ -1,5 +1,5 @@
 // utils/level.js - 关卡生成算法
-// 支持200关，每关参数变化明显，确保玩家感受不同
+// 支持200关，每关参数变化剧烈，确保玩家明显感受不同难度
 
 /**
  * 奖励配置：根据星级和关卡号计算奖励
@@ -20,49 +20,57 @@ function getLevelConfig(n) {
     n = 1;
   }
 
-  // 每3关增加1个水管，每关都有变化感
-  const pipeCount = Math.min(30, 2 + Math.floor(n / 3));
-  // 每4关增加1个漏水点，确保每关不同
-  const leakCount = Math.min(pipeCount, Math.max(1, Math.floor(n / 4)));
+  // 每2关增加1个水管，变化更明显
+  const pipeCount = Math.min(40, 3 + Math.floor(n / 2));
+  // 漏水点数紧跟水管数，每2关增加1处
+  const leakCount = Math.min(pipeCount, Math.max(1, 1 + Math.floor(n / 2)));
 
   const config = {
     level: n,
     // 场景类型：5种场景逐关轮换
     sceneType: n % 5,
 
-    // 水管总数：基础2个 + 每3关增加1个，上限30个
+    // 水管总数：基础3个 + 每2关增加1个，上限40个（第1关:3, 第200关:40）
     pipeCount,
 
-    // 初始漏水数：每4关增加1个，不超过水管总数
+    // 初始漏水数：基础1个 + 每2关增加1个，和水管同步增长
     leakCount,
 
-    // 单次领取扳手数：开始6个，每40关减少1个，最少2个
-    wrenchPerPickup: Math.max(2, 6 - Math.floor(n / 40)),
+    // 单次领取扳手数：开始8个，每25关减少1个，最少1个
+    // 第1关:8 第50关:6 第100关:4 第150关:2 第200关:1
+    wrenchPerPickup: Math.max(1, 8 - Math.floor(n / 25)),
 
-    // 关卡时限（秒）：开始120秒，每关减少0.3秒，最低25秒
-    timeLimit: Math.max(25, Math.floor(120 - n * 0.3)),
+    // 关卡时限（秒）：开始150秒，每关减少0.7秒，最低15秒
+    // 第1关:150 第50关:115 第100关:80 第150关:45 第200关:15
+    timeLimit: Math.max(15, Math.floor(150 - n * 0.7)),
 
-    // 积水速度系数：基础1，每关增加0.005（明显增长）
-    waterSpeed: 1 + n * 0.005,
+    // 积水速度系数：基础1，每关增加0.015（原0.005，3倍增速）
+    // 第1关:1.015 第50关:1.75 第100关:2.5 第150关:3.25 第200关:4.0
+    waterSpeed: 1 + n * 0.015,
 
-    // 爆管概率：最大0.35，起始0.005，每关增加0.0015
-    burstProb: Math.min(0.35, 0.005 + n * 0.0015),
+    // 爆管概率：最大0.5，起始0.01，每关增加0.003
+    // 第1关:1.3% 第50关:16% 第100关:31% 第150关:46% 第200关:50%
+    burstProb: Math.min(0.5, 0.01 + n * 0.003),
 
-    // 维修所需时间（帧数，60fps）：每3关增加1帧
-    repairFrames: Math.max(15, 30 + Math.floor(n / 3)),
+    // 维修所需时间（帧数，60fps）：每关增加1帧，越来越难修
+    // 第1关:21帧 第50关:70帧 第100关:120帧 第200关:220帧
+    repairFrames: Math.max(15, 20 + n),
 
-    // 积水扩散间隔（帧）：随关卡递减
-    waterSpreadInterval: Math.max(6, Math.floor(20 / (1 + n * 0.005))),
+    // 积水扩散间隔（帧）：大幅递减，越往后积水蔓延越快
+    // 第1关:18帧 第50关:11帧 第100关:8帧 第150关:6帧 第200关:5帧
+    waterSpreadInterval: Math.max(3, Math.floor(20 / (1 + n * 0.015))),
 
-    // 血量掉落速度：踩积水每秒扣HP
-    hpLossRate: 10,
+    // 血量掉落速度：随关卡递增
+    // 第1关:10 第50关:17 第100关:25 第150关:32 第200关:40
+    hpLossRate: Math.min(40, Math.floor(10 + n * 0.15)),
+  };
 
-    // 星级评定时间阈值（秒）：每关递增0.1秒
-    starThresholds: {
-      three: Math.floor(n * 0.1 + 8),
-      two: Math.floor(n * 0.1 + 18),
-      one: Math.floor(n * 0.1 + 28)
-    }
+  // 星级评定时间阈值：基于当前关卡时限的百分比，确保所有关卡都理论可达
+  // 3星: 时限的20%  2星: 时限的40%  1星: 时限的70%
+  config.starThresholds = {
+    three: Math.max(5, Math.floor(config.timeLimit * 0.2)),
+    two: Math.max(8, Math.floor(config.timeLimit * 0.4)),
+    one: Math.max(12, Math.floor(config.timeLimit * 0.7))
   };
 
   return config;

@@ -24,12 +24,12 @@ public class GameController {
             return R.fail("关卡号必须在1-200之间");
         }
 
-        int pipeCount = Math.min(30, 2 + n / 3);
-        int initialLeaks = Math.min(pipeCount, Math.max(1, n / 4));
-        int wrenchPerPickup = Math.max(2, 6 - n / 40);
-        int timeLimit = (int) Math.max(25, 120 - n * 0.3);
-        double waterSpeed = 1 + n * 0.005;
-        double burstProbability = Math.min(0.35, 0.005 + n * 0.0015);
+        int pipeCount = Math.min(40, 3 + n / 2);
+        int initialLeaks = Math.min(pipeCount, Math.max(1, 1 + n / 2));
+        int wrenchPerPickup = Math.max(1, 8 - n / 25);
+        int timeLimit = (int) Math.max(15, 150 - n * 0.7);
+        double waterSpeed = 1 + n * 0.015;
+        double burstProbability = Math.min(0.5, 0.01 + n * 0.003);
         int sceneIndex = n % 5;
 
         String sceneType;
