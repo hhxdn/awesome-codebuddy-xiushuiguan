@@ -61,6 +61,22 @@ const POWERUP_TYPES = {
     color: '#FFC107',
     duration: 0,
     desc: '通关额外获得50%金币'
+  },
+  MAGNET: {
+    key: 'magnet',
+    icon: '🧲',
+    name: '磁铁',
+    color: '#E040FB',
+    duration: 8000,
+    desc: '自动吸引附近道具'
+  },
+  HEAL: {
+    key: 'heal',
+    icon: '💚',
+    name: '回复药水',
+    color: '#69F0AE',
+    duration: 0,
+    desc: '瞬间回复30点生命值'
   }
 };
 

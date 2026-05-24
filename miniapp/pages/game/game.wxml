@@ -16,7 +16,10 @@
       </view>
       <text class="hp-text">{{hp}}/{{maxHp}}</text>
     </view>
-    
+    <!-- 连击显示 -->
+    <view class="combo-badge" wx:if="{{comboCount >= 3}}">
+      <text class="combo-text">🔥 x{{comboCount}}</text>
+    </view>
     <!-- 暂停按钮 -->
     <view class="pause-btn" bindtap="togglePause">
       <text>{{gameState === 'paused' ? '▶️' : '⏸️'}}</text>

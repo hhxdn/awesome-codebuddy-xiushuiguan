@@ -87,6 +87,30 @@
   background: #E0E0E0;
 }
 
+/* 连击徽章 */
+.combo-badge {
+  display: flex;
+  align-items: center;
+  padding: 2rpx 14rpx;
+  background: linear-gradient(135deg, #FF6D00, #FF1744);
+  border-radius: 20rpx;
+  box-shadow: 0 2rpx 12rpx rgba(255, 109, 0, 0.4);
+  animation: comboPop 0.3s ease-out;
+}
+
+.combo-text {
+  font-size: 22rpx;
+  font-weight: bold;
+  color: #fff;
+  text-shadow: 0 1rpx 2rpx rgba(0, 0, 0, 0.3);
+}
+
+@keyframes comboPop {
+  0% { transform: scale(0.3); opacity: 0; }
+  60% { transform: scale(1.2); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
 /* Buff指示器 */
 .buffs-bar {
   display: flex;
