@@ -24,31 +24,39 @@ public class GameController {
             return R.fail("关卡号必须在1-10000之间");
         }
 
-        int pipeCount = 2 + (int) Math.floor(n / 100.0);
-        int initialLeaks = Math.max(2, (int) Math.floor(n / 50.0));
-        int wrenchPerPickup = Math.max(1, 3 - (int) Math.floor(n / 2000.0));
-        int timeLimit = (int) Math.max(40, 120 - n * 0.008);
-        double waterSpeed = 1 + n * 0.0005;
-        double burstProbability = Math.min(0.3, n * 0.003);
-        int sceneIndex = n % 3;
+        int pipeCount = Math.min(30, 2 + n / 5);
+        int initialLeaks = Math.min(pipeCount, Math.max(1, n / 8));
+        int wrenchPerPickup = Math.max(2, 5 - n / 1000);
+        int timeLimit = (int) Math.max(30, 120 - n * 0.015);
+        double waterSpeed = 1 + n * 0.001;
+        double burstProbability = Math.min(0.3, 0.002 + n * 0.003);
+        int sceneIndex = n % 5;
 
         String sceneType;
         String sceneDesc;
         switch (sceneIndex) {
             case 0:
-                sceneType = "A";
+                sceneType = "住宅区";
                 sceneDesc = "简单场景 - 水管布局简单，漏水点少，适合新手";
                 break;
             case 1:
-                sceneType = "B";
+                sceneType = "商业区";
                 sceneDesc = "中等场景 - 水管布局适中，需要一定策略";
                 break;
             case 2:
-                sceneType = "C";
+                sceneType = "工业区";
                 sceneDesc = "困难场景 - 水管布局复杂，漏水点多，需要高效操作";
                 break;
+            case 3:
+                sceneType = "地下管道";
+                sceneDesc = "专家场景 - 地下管道错综复杂，漏水点多且隐蔽";
+                break;
+            case 4:
+                sceneType = "河边管道";
+                sceneDesc = "噩梦场景 - 河边管道水压极大，爆管风险极高";
+                break;
             default:
-                sceneType = "A";
+                sceneType = "住宅区";
                 sceneDesc = "简单场景";
         }
 

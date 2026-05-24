@@ -147,17 +147,25 @@ Page({
     for (let i = 0; i < count; i++) {
       let x, y
       switch (sceneIndex) {
-        case 0: // 场景A：右侧集中
+        case 0: // 住宅区：右侧集中
           x = CANVAS_W * 0.6 + Math.random() * (CANVAS_W * 0.35)
           y = margin + Math.random() * h
           break
-        case 1: // 场景B：左右分散
+        case 1: // 商业区：左右分散
           x = margin + Math.random() * w
           y = margin + Math.random() * h
           break
-        case 2: // 场景C：全屏散落
+        case 2: // 工业区：全屏散落
           x = margin * 0.5 + Math.random() * (CANVAS_W - margin)
           y = margin * 0.3 + Math.random() * (CANVAS_H - margin - 30)
+          break
+        case 3: // 地下管道：底部密集
+          x = margin + Math.random() * w
+          y = CANVAS_H * 0.4 + Math.random() * (CANVAS_H * 0.5)
+          break
+        case 4: // 河边管道：水平排列
+          x = margin + Math.random() * w
+          y = margin * 0.5 + Math.random() * (CANVAS_H * 0.4)
           break
       }
 
@@ -185,6 +193,8 @@ Page({
       case 0: this.carX = 60; this.carY = 300; break
       case 1: this.carX = CANVAS_W / 2; this.carY = 300; break
       case 2: this.carX = CANVAS_W - 80; this.carY = CANVAS_H - 120; break
+      case 3: this.carX = 60; this.carY = CANVAS_H - 120; break
+      case 4: this.carX = CANVAS_W - 80; this.carY = CANVAS_H - 120; break
     }
   },
 

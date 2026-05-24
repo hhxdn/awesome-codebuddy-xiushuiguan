@@ -115,7 +115,7 @@ export default {
   },
   computed: {
     sceneTagType() {
-      const map = { '住宅区': 'success', '商业区': 'primary', '工业区': 'warning', '地下管道': 'danger' }
+      const map = { '住宅区': 'success', '商业区': '', '工业区': 'warning', '地下管道': 'danger', '河边管道': 'danger' }
       return map[this.levelDetail.sceneType] || 'info'
     }
   },
@@ -136,15 +136,17 @@ export default {
       } catch (error) {
         // 后端未就绪时根据关卡号生成模拟数据
         const level = this.currentLevel
-        const sceneTypes = ['住宅区', '商业区', '工业区', '地下管道']
+        const sceneTypes = ['住宅区', '商业区', '工业区', '地下管道', '河边管道']
+        const pipeCount = Math.min(30, 2 + Math.floor(level / 5))
+        const leakCount = Math.min(pipeCount, Math.max(1, Math.floor(level / 8)))
         this.levelDetail = {
-          pipeCount: Math.floor(5 + level * 0.8 + Math.random() * 3),
-          leakCount: Math.floor(1 + level * 0.15 + Math.random() * 2),
-          wrenchCount: Math.max(1, Math.floor(5 - level * 0.03)),
-          timeLimit: Math.max(20, Math.floor(90 - level * 0.5)),
-          waterSpeed: Math.floor(3 + level * 0.12),
-          burstRate: Math.min(50, Math.floor(2 + level * 0.4)),
-          sceneType: sceneTypes[level % 4],
+          pipeCount,
+          leakCount,
+          wrenchCount: Math.max(2, 5 - Math.floor(level / 1000)),
+          timeLimit: Math.max(30, Math.floor(120 - level * 0.015)),
+          waterSpeed: Math.floor(1 + level * 0.001),
+          burstRate: Math.min(30, Math.floor(0.2 + level * 0.3)),
+          sceneType: sceneTypes[level % 5],
           difficulty: Math.min(5, Math.ceil(level / 20))
         }
         this.generateScene()
@@ -157,9 +159,9 @@ export default {
       const pipes = []
       const leaks = []
       const workers = []
-      const pipeCount = Math.min(8, Math.floor(3 + this.currentLevel * 0.05))
-      const leakCount = Math.min(5, Math.floor(1 + this.currentLevel * 0.02))
-      const workerCount = Math.min(3, Math.floor(1 + this.currentLevel * 0.01))
+      const pipeCount = Math.min(8, 2 + Math.floor(this.currentLevel / 5))
+      const leakCount = Math.min(pipeCount, Math.max(1, Math.floor(this.currentLevel / 8)))
+      const workerCount = Math.min(3, 1 + Math.floor(this.currentLevel / 10))
 
       for (let i = 0; i < pipeCount; i++) {
         const isHorizontal = Math.random() > 0.4
@@ -205,8 +207,8 @@ export default {
       const leakCounts = []
       for (let i = 1; i <= 100; i++) {
         levels.push(`第${i}关`)
-        pipeCounts.push(Math.floor(5 + i * 0.8))
-        leakCounts.push(Math.floor(1 + i * 0.15))
+        pipeCounts.push(Math.min(30, 2 + Math.floor(i / 5)))
+        leakCounts.push(Math.min(Math.min(30, 2 + Math.floor(i / 5)), Math.max(1, Math.floor(i / 8))))
       }
       const option = {
         tooltip: {
