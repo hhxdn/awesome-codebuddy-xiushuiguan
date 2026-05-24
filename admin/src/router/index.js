@@ -45,6 +45,36 @@ const routes = [
         name: 'GameConfig',
         component: () => import('@/views/GameConfig.vue'),
         meta: { title: '游戏配置' }
+      },
+      {
+        path: 'advertising',
+        name: 'Advertising',
+        component: () => import('@/views/Advertising.vue'),
+        meta: { title: '广告管理' }
+      },
+      {
+        path: 'announcement',
+        name: 'Announcement',
+        component: () => import('@/views/Announcement.vue'),
+        meta: { title: '公告管理' }
+      },
+      {
+        path: 'level-preview',
+        name: 'LevelPreview',
+        component: () => import('@/views/LevelPreview.vue'),
+        meta: { title: '关卡预览' }
+      },
+      {
+        path: 'feedback',
+        name: 'Feedback',
+        component: () => import('@/views/Feedback.vue'),
+        meta: { title: '用户反馈' }
+      },
+      {
+        path: 'data-analysis',
+        name: 'DataAnalysis',
+        component: () => import('@/views/DataAnalysis.vue'),
+        meta: { title: '数据分析' }
       }
     ]
   }

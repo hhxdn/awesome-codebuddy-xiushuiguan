@@ -1,14 +1,16 @@
 <template>
   <el-container style="height: 100%">
     <!-- 侧边栏 -->
-    <el-aside width="220px" style="background-color: #304156; overflow-y: auto;">
+    <el-aside :width="isCollapse ? '64px' : '220px'" style="background-color: #304156; overflow-y: auto; transition: width 0.3s;">
       <div class="logo-container">
-        <h2 class="logo-title">水管维修工</h2>
-        <p class="logo-subtitle">管理后台</p>
+        <h2 class="logo-title" v-show="!isCollapse">水管维修工</h2>
+        <p class="logo-subtitle" v-show="!isCollapse">管理后台</p>
+        <i class="el-icon-s-tools logo-icon" v-show="isCollapse" style="font-size: 24px; color: #fff;"></i>
       </div>
       <el-menu
         :default-active="activeMenu"
         :router="true"
+        :collapse="isCollapse"
         background-color="#304156"
         text-color="#bfcbd9"
         active-text-color="#409EFF"
@@ -16,23 +18,43 @@
       >
         <el-menu-item index="/dashboard">
           <i class="el-icon-s-home"></i>
-          <span>首页</span>
+          <span slot="title">首页</span>
         </el-menu-item>
         <el-menu-item index="/users">
           <i class="el-icon-user"></i>
-          <span>用户管理</span>
+          <span slot="title">用户管理</span>
         </el-menu-item>
         <el-menu-item index="/records">
           <i class="el-icon-s-order"></i>
-          <span>游戏记录</span>
+          <span slot="title">游戏记录</span>
         </el-menu-item>
         <el-menu-item index="/ranks">
           <i class="el-icon-s-flag"></i>
-          <span>排行榜管理</span>
+          <span slot="title">排行榜管理</span>
         </el-menu-item>
         <el-menu-item index="/config">
           <i class="el-icon-setting"></i>
-          <span>游戏配置</span>
+          <span slot="title">游戏配置</span>
+        </el-menu-item>
+        <el-menu-item index="/advertising">
+          <i class="el-icon-s-promotion"></i>
+          <span slot="title">广告管理</span>
+        </el-menu-item>
+        <el-menu-item index="/announcement">
+          <i class="el-icon-s-comment"></i>
+          <span slot="title">公告管理</span>
+        </el-menu-item>
+        <el-menu-item index="/level-preview">
+          <i class="el-icon-view"></i>
+          <span slot="title">关卡预览</span>
+        </el-menu-item>
+        <el-menu-item index="/feedback">
+          <i class="el-icon-chat-dot-round"></i>
+          <span slot="title">用户反馈</span>
+        </el-menu-item>
+        <el-menu-item index="/data-analysis">
+          <i class="el-icon-s-data"></i>
+          <span slot="title">数据分析</span>
         </el-menu-item>
       </el-menu>
     </el-aside>
@@ -42,7 +64,12 @@
       <!-- 顶部导航 -->
       <el-header style="height: 60px; background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,0.08); display: flex; align-items: center; justify-content: space-between; padding: 0 24px;">
         <div class="header-left">
-          <h3 style="color: #303133; margin: 0; font-size: 18px;">水管维修工 - 管理后台</h3>
+          <i
+            :class="isCollapse ? 'el-icon-s-unfold' : 'el-icon-s-fold'"
+            style="font-size: 20px; cursor: pointer; margin-right: 16px; color: #606266;"
+            @click="isCollapse = !isCollapse"
+          ></i>
+          <h3 style="color: #303133; margin: 0; font-size: 18px; display: inline-block;">水管维修工 - 管理后台</h3>
         </div>
         <div class="header-right">
           <el-dropdown trigger="click">
@@ -71,6 +98,11 @@
 <script>
 export default {
   name: 'Layout',
+  data() {
+    return {
+      isCollapse: false
+    }
+  },
   computed: {
     activeMenu() {
       return this.$route.path
@@ -100,6 +132,11 @@ export default {
   padding: 20px 0;
   text-align: center;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  min-height: 70px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
 }
 .logo-title {
   color: #fff;

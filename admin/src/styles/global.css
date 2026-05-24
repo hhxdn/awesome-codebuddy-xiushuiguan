@@ -19,6 +19,12 @@ html, body, #app {
   padding: 20px;
   margin-bottom: 20px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transition: transform 0.3s ease;
+}
+
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
 }
 
 .stat-card .stat-title {
@@ -63,4 +69,40 @@ html, body, #app {
   padding: 20px;
   margin-bottom: 20px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+/* 滚动条美化 */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c0c4cc;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #909399;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Element UI 覆盖 */
+.el-table th {
+  background-color: #f5f7fa !important;
+}
+
+.el-card {
+  border-radius: 8px;
+}
+
+.el-dialog__header {
+  border-bottom: 1px solid #ebeef5;
+}
+
+.el-dialog__footer {
+  border-top: 1px solid #ebeef5;
 }

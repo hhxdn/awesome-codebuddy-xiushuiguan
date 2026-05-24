@@ -1,7 +1,37 @@
 <template>
   <div class="rank-list-page">
+    <!-- Tab切换 + 统计卡片 -->
+    <el-row :gutter="20" style="margin-bottom: 16px;">
+      <el-col :xs="24" :sm="8" :md="8">
+        <div class="stat-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+          <div class="stat-title">今日最高分</div>
+          <div class="stat-value">{{ todayStats.maxScore }}</div>
+        </div>
+      </el-col>
+      <el-col :xs="24" :sm="8" :md="8">
+        <div class="stat-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+          <div class="stat-title">今日通关人数</div>
+          <div class="stat-value">{{ todayStats.passCount }}</div>
+        </div>
+      </el-col>
+      <el-col :xs="24" :sm="8" :md="8">
+        <div class="stat-card" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);">
+          <div class="stat-title">今日平均用时</div>
+          <div class="stat-value">{{ todayStats.avgDuration }}秒</div>
+        </div>
+      </el-col>
+    </el-row>
+
     <div class="table-container">
-      <h4 style="color: #303133; margin-bottom: 16px;">全服排行榜</h4>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <el-tabs v-model="activeTab" @tab-click="handleTabChange">
+          <el-tab-pane label="每日排行" name="daily" />
+          <el-tab-pane label="每周排行" name="weekly" />
+          <el-tab-pane label="总排行" name="all" />
+        </el-tabs>
+        <el-button type="primary" icon="el-icon-refresh" size="small" @click="handleRefresh">刷新</el-button>
+      </div>
+
       <el-table :data="rankList" stripe v-loading="loading" style="width: 100%;" highlight-current-row>
         <el-table-column label="排名" width="80" align="center">
           <template slot-scope="scope">
@@ -18,10 +48,7 @@
         </el-table-column>
         <el-table-column label="头像" width="80" align="center">
           <template slot-scope="scope">
-            <el-avatar
-              :size="40"
-              :src="scope.row.avatar"
-            >
+            <el-avatar :size="40" :src="scope.row.avatar">
               {{ scope.row.nickname ? scope.row.nickname.charAt(0) : '?' }}
             </el-avatar>
           </template>
@@ -61,12 +88,18 @@ export default {
   name: 'RankList',
   data() {
     return {
+      activeTab: 'daily',
       rankList: [],
       loading: false,
       pagination: {
         page: 1,
         size: 10,
         total: 0
+      },
+      todayStats: {
+        maxScore: 0,
+        passCount: 0,
+        avgDuration: 0
       }
     }
   },
@@ -79,7 +112,8 @@ export default {
       try {
         const res = await getRankList({
           page: this.pagination.page,
-          size: this.pagination.size
+          size: this.pagination.size,
+          type: this.activeTab
         })
         if (res.data) {
           this.rankList = res.data.records || res.data.list || []
@@ -97,9 +131,22 @@ export default {
           { rank: 7, nickname: '小丽', avatar: '', maxLevel: 4, totalStars: 36, totalGames: 65, passRate: 65 }
         ]
         this.pagination.total = 7
+        this.todayStats = {
+          maxScore: 900,
+          passCount: 42,
+          avgDuration: 38
+        }
       } finally {
         this.loading = false
       }
+    },
+    handleTabChange() {
+      this.pagination.page = 1
+      this.loadRankList()
+    },
+    handleRefresh() {
+      this.loadRankList()
+      this.$message.success('已刷新')
     },
     handleSizeChange(val) {
       this.pagination.size = val
@@ -113,3 +160,6 @@ export default {
   }
 }
 </script>
+
+<style scoped>
+</style>
