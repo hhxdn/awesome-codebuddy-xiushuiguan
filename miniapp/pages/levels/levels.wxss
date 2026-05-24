@@ -1,0 +1,185 @@
+/* pages/levels/levels.wxss - 关卡选择页样式 */
+.page-levels {
+  min-height: 100vh;
+  background: #E3F2FD;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 顶部状态 */
+.levels-header {
+  background: linear-gradient(135deg, #1565C0, #2196F3);
+  padding: 30rpx;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.header-info {
+  display: flex;
+  align-items: baseline;
+}
+
+.info-label {
+  font-size: 24rpx;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.info-value {
+  font-size: 36rpx;
+  font-weight: bold;
+  color: #FFFFFF;
+}
+
+.info-total {
+  font-size: 24rpx;
+  color: rgba(255, 255, 255, 0.5);
+  margin-left: 4rpx;
+}
+
+.header-page {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+
+.page-info {
+  font-size: 24rpx;
+  color: rgba(255, 255, 255, 0.8);
+  text-decoration: underline;
+}
+
+.page-tip {
+  font-size: 28rpx;
+}
+
+/* 提示 */
+.tip-area {
+  background: #FFF9C4;
+  padding: 16rpx 30rpx;
+  font-size: 22rpx;
+  color: #F57F17;
+  text-align: center;
+}
+
+/* 关卡网格 */
+.levels-grid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16rpx;
+  padding: 20rpx;
+  overflow-y: auto;
+}
+
+.level-item {
+  background: #FFFFFF;
+  border-radius: 16rpx;
+  padding: 24rpx 16rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 140rpx;
+  border: 3rpx solid transparent;
+  transition: all 0.2s;
+  position: relative;
+}
+
+.level-item:active {
+  transform: scale(0.95);
+}
+
+/* 已通关 */
+.level-item.cleared {
+  background: linear-gradient(135deg, #E8F5E9, #C8E6C9);
+  border-color: #4CAF50;
+}
+
+/* 当前关卡 */
+.level-item.current {
+  border-color: #2196F3;
+  box-shadow: 0 0 20rpx rgba(33, 150, 243, 0.5);
+  animation: glow 2s ease-in-out infinite;
+}
+
+@keyframes glow {
+  0%, 100% { box-shadow: 0 0 10rpx rgba(33, 150, 243, 0.3); }
+  50% { box-shadow: 0 0 30rpx rgba(33, 150, 243, 0.6); }
+}
+
+/* 未解锁 */
+.level-item.locked {
+  background: #EEEEEE;
+  opacity: 0.6;
+}
+
+.level-number {
+  font-size: 32rpx;
+  font-weight: bold;
+  color: #333333;
+}
+
+.level-stars {
+  margin-top: 8rpx;
+  display: flex;
+  gap: 4rpx;
+}
+
+.star {
+  font-size: 24rpx;
+  color: #E0E0E0;
+}
+
+.star.active {
+  color: #FFC107;
+}
+
+.level-lock {
+  font-size: 32rpx;
+  margin-top: 8rpx;
+}
+
+.level-current-icon {
+  font-size: 32rpx;
+  margin-top: 8rpx;
+  animation: bounce 0.6s ease-in-out infinite;
+}
+
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6rpx); }
+}
+
+/* 翻页 */
+.pagination {
+  display: flex;
+  align-items: center;
+  padding: 20rpx 30rpx 50rpx;
+  gap: 16rpx;
+}
+
+.page-btn {
+  flex: 1;
+  height: 72rpx;
+  background: #2196F3;
+  color: #FFFFFF;
+  border-radius: 36rpx;
+  font-size: 26rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+}
+
+.page-btn.disabled {
+  background: #BDBDBD;
+  color: #FFFFFF;
+}
+
+.page-indicator {
+  flex: 0 0 120rpx;
+  text-align: center;
+  font-size: 26rpx;
+  color: #666666;
+}

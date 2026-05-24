@@ -1,0 +1,88 @@
+<view class="game-page">
+  <!-- 顶部状态栏 -->
+  <view class="status-bar">
+    <view class="status-item">
+      <text class="status-icon">⏱</text>
+      <text class="status-value {{timeLeft <= 10 ? 'danger' : ''}}">{{timeLeft}}s</text>
+    </view>
+    <view class="status-item">
+      <text class="status-icon">🔧</text>
+      <text class="status-value">{{wrenchCount}}</text>
+    </view>
+    <view class="status-item hp-item">
+      <text class="status-icon">❤️</text>
+      <view class="hp-bar-bg">
+        <view class="hp-bar-fill" style="width: {{hp}}%; background: {{hp > 50 ? '#4CAF50' : (hp > 25 ? '#FF9800' : '#F44336')}};"></view>
+      </view>
+      <text class="hp-text">{{hp}}/{{maxHp}}</text>
+    </view>
+    
+    <!-- 暂停按钮 -->
+    <view class="pause-btn" bindtap="togglePause">
+      <text>{{gameState === 'paused' ? '▶️' : '⏸️'}}</text>
+    </view>
+  </view>
+
+  <!-- 游戏Canvas -->
+  <canvas 
+    type="2d" 
+    id="gameCanvas" 
+    class="game-canvas"
+    style="width: {{canvasWidth}}px; height: {{canvasHeight}}px;"
+    bindtouchstart="onTouchStart"
+    bindtouchmove="onTouchMove"
+    bindtouchend="onTouchEnd"
+  ></canvas>
+
+  <!-- 暂停遮罩 -->
+  <view class="pause-overlay" wx:if="{{gameState === 'paused'}}">
+    <view class="pause-text">⏸ 游戏暂停</view>
+    <view class="pause-sub">点击播放按钮继续</view>
+  </view>
+
+  <!-- 动态按钮区域 -->
+  <view class="action-bar">
+    <view class="action-btn pickup-btn" wx:if="{{showPickupBtn}}" bindtap="onPickupWrench">
+      <text>🔧 领取扳手</text>
+    </view>
+    <view class="action-btn repair-btn" wx:if="{{showRepairBtn}}" bindtap="onRepairPipe">
+      <text>🔨 维修</text>
+    </view>
+    <view class="action-btn exit-btn" bindtap="exitGame">
+      <text>退出</text>
+    </view>
+  </view>
+
+  <!-- 底部Banner广告 -->
+  <view class="banner-ad">
+    <ad unit-id="adunit-banner-id" type="banner"></ad>
+  </view>
+
+  <!-- 通关胜利弹窗 -->
+  <victory-dialog 
+    show="{{showVictory}}" 
+    level="{{level}}" 
+    stars="{{victoryStars}}" 
+    timeUsed="{{victoryTime}}"
+    bind:next="onVictoryNext"
+    bind:replay="onVictoryReplay"
+    bind:share="onVictoryShare"
+    bind:watchad="onVictoryWatchAd"
+  />
+
+  <!-- 失败弹窗 -->
+  <defeat-dialog 
+    show="{{showDefeat}}" 
+    level="{{level}}" 
+    reason="{{defeatReason}}"
+    bind:retry="onDefeatRetry"
+    bind:watchad="onDefeatWatchAd"
+  />
+
+  <!-- 激励视频福利弹窗 -->
+  <reward-dialog 
+    show="{{showReward}}"
+    bind:select="onSelectReward"
+    bind:close="onCloseReward"
+  />
+</view>

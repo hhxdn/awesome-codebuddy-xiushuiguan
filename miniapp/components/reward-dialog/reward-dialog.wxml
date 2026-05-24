@@ -1,0 +1,40 @@
+<!-- components/reward-dialog/reward-dialog.wxml - 激励视频福利弹窗 -->
+<view class="dialog-mask" bindtap="onClose">
+  <view class="reward-card" catchtap="stopPropagation">
+    <!-- 关闭按钮 -->
+    <view class="close-area" bindtap="onClose">
+      <text class="close-icon">✕</text>
+    </view>
+
+    <!-- 标题 -->
+    <view class="reward-title">🎁 看广告获取福利</view>
+    <view class="reward-subtitle">选择一个奖励，观看视频后即可获得</view>
+
+    <!-- 福利选项 -->
+    <view class="reward-list">
+      <view
+        class="reward-option"
+        wx:for="{{rewards}}"
+        wx:key="type"
+        data-type="{{item.type}}"
+        bindtap="onSelect"
+      >
+        <view class="option-icon" style="border-color: {{item.color}};">
+          <text>{{item.icon}}</text>
+        </view>
+        <view class="option-info">
+          <text class="option-title" style="color: {{item.color}};">{{item.title}}</text>
+          <text class="option-desc">{{item.desc}}</text>
+        </view>
+        <view class="option-btn" style="background: {{item.color}};">
+          <text>观看视频</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 底部提示 -->
+    <view class="reward-footer">
+      <text>视频时长约15-30秒</text>
+    </view>
+  </view>
+</view>

@@ -1,0 +1,10 @@
+{
+  "navigationBarTitleText": "水管维修工",
+  "navigationStyle": "custom",
+  "disableScroll": true,
+  "usingComponents": {
+    "victory-dialog": "../../components/victory-dialog/victory-dialog",
+    "defeat-dialog": "../../components/defeat-dialog/defeat-dialog",
+    "reward-dialog": "../../components/reward-dialog/reward-dialog"
+  }
+}

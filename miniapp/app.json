@@ -1,0 +1,17 @@
+{
+  "pages": [
+    "pages/index/index",
+    "pages/levels/levels",
+    "pages/game/game",
+    "pages/settings/settings",
+    "pages/ranking/ranking"
+  ],
+  "window": {
+    "navigationBarBackgroundColor": "#2196F3",
+    "navigationBarTitleText": "水管维修工",
+    "navigationBarTextStyle": "white",
+    "backgroundColor": "#E3F2FD",
+    "backgroundTextStyle": "light"
+  },
+  "sitemapLocation": "sitemap.json"
+}

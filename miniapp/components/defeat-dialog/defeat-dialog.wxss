@@ -1,0 +1,83 @@
+/* components/defeat-dialog/defeat-dialog.wxss */
+.defeat-card {
+  background: #FFFFFF;
+  border-radius: 24rpx;
+  padding: 40rpx 30rpx 30rpx;
+  margin: 0 60rpx;
+  width: 520rpx;
+  text-align: center;
+  box-shadow: 0 8rpx 32rpx rgba(0, 0, 0, 0.2);
+}
+
+/* 失败图标 */
+.defeat-icon {
+  font-size: 80rpx;
+  margin-bottom: 16rpx;
+  animation: shake 0.5s ease-in-out;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-10rpx); }
+  40% { transform: translateX(10rpx); }
+  60% { transform: translateX(-10rpx); }
+  80% { transform: translateX(10rpx); }
+}
+
+/* 标题 */
+.defeat-title {
+  font-size: 36rpx;
+  font-weight: bold;
+  color: #F44336;
+  margin-bottom: 16rpx;
+}
+
+/* 失败原因 */
+.defeat-reason {
+  margin-bottom: 12rpx;
+}
+
+.reason-label {
+  font-size: 26rpx;
+  color: #999999;
+}
+
+.reason-text {
+  font-size: 28rpx;
+  color: #F44336;
+  font-weight: bold;
+}
+
+/* 提示 */
+.defeat-tip {
+  font-size: 24rpx;
+  color: #999999;
+  margin-bottom: 16rpx;
+}
+
+/* 关卡 */
+.defeat-level {
+  font-size: 26rpx;
+  color: #666666;
+  background: #F5F5F5;
+  display: inline-block;
+  padding: 8rpx 24rpx;
+  border-radius: 20rpx;
+  margin-bottom: 30rpx;
+}
+
+/* 按钮 */
+.defeat-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+}
+
+.defeat-btn-main {
+  height: 96rpx !important;
+  font-size: 32rpx !important;
+}
+
+.defeat-btn-revive {
+  font-size: 28rpx;
+}

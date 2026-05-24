@@ -1,0 +1,74 @@
+<!-- pages/settings/settings.wxml - 设置页面 -->
+<view class="page-settings">
+  <view class="settings-container">
+    <!-- 音效设置 -->
+    <view class="card setting-item">
+      <view class="setting-label">
+        <text class="setting-icon">🔊</text>
+        <text class="setting-text">音效</text>
+      </view>
+      <switch
+        checked="{{soundEnabled}}"
+        bindchange="onSoundChange"
+        color="#2196F3"
+      />
+    </view>
+
+    <!-- 震动设置 -->
+    <view class="card setting-item">
+      <view class="setting-label">
+        <text class="setting-icon">📳</text>
+        <text class="setting-text">震动</text>
+      </view>
+      <switch
+        checked="{{vibrateEnabled}}"
+        bindchange="onVibrateChange"
+        color="#2196F3"
+      />
+    </view>
+
+    <!-- 游戏说明 -->
+    <view class="card setting-item setting-link" bindtap="onGameGuide">
+      <view class="setting-label">
+        <text class="setting-icon">📖</text>
+        <text class="setting-text">游戏说明</text>
+      </view>
+      <text class="setting-arrow">▶</text>
+    </view>
+
+    <!-- 清除缓存 -->
+    <view class="card setting-item setting-link" bindtap="onClearCache">
+      <view class="setting-label">
+        <text class="setting-icon">🗑️</text>
+        <text class="setting-text danger-text">清除游戏缓存进度</text>
+      </view>
+      <text class="setting-arrow">▶</text>
+    </view>
+
+    <!-- 隐私政策 -->
+    <view class="card setting-item setting-link" bindtap="onPrivacyPolicy">
+      <view class="setting-label">
+        <text class="setting-icon">🔒</text>
+        <text class="setting-text">隐私政策</text>
+      </view>
+      <text class="setting-arrow">▶</text>
+    </view>
+
+    <!-- 关于 -->
+    <view class="card setting-item setting-link" bindtap="onAbout">
+      <view class="setting-label">
+        <text class="setting-icon">ℹ️</text>
+        <text class="setting-text">关于游戏</text>
+      </view>
+      <text class="setting-arrow">▶</text>
+    </view>
+  </view>
+
+  <!-- 返回首页 -->
+  <view class="settings-footer">
+    <button class="btn-secondary" bindtap="onBackHome">
+      ← 返回首页
+    </button>
+    <text class="version-text">v1.0.0</text>
+  </view>
+</view>

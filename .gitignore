@@ -1,0 +1,27 @@
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# Maven
+backend/target/
+backend/.mvn/
+
+# Node
+node_modules/
+admin/dist/
+admin/node_modules/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Teams (CodeBuddy internal)
+.codebuddy/
+
+# Logs
+*.log
+logs/
+
+# Upload
+ui/

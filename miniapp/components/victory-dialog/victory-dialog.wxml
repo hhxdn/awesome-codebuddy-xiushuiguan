@@ -1,0 +1,40 @@
+<!-- components/victory-dialog/victory-dialog.wxml - 通关胜利弹窗 -->
+<view class="dialog-mask" bindtap="stopPropagation">
+  <view class="victory-card" catchtap="stopPropagation">
+    <!-- 星星动画 -->
+    <view class="stars-area {{showStars ? 'show' : ''}}">
+      <view class="star-item star-1">
+        <text class="star-icon {{stars >= 1 ? 'active' : ''}}">★</text>
+      </view>
+      <view class="star-item star-2">
+        <text class="star-icon {{stars >= 2 ? 'active' : ''}}">★</text>
+      </view>
+      <view class="star-item star-3">
+        <text class="star-icon {{stars >= 3 ? 'active' : ''}}">★</text>
+      </view>
+    </view>
+
+    <!-- 标题 -->
+    <view class="victory-title">🎉 恭喜通关！</view>
+
+    <!-- 关卡信息 -->
+    <view class="victory-info">
+      <text class="info-item">第{{level}}关</text>
+      <text class="info-item">用时 {{time}} 秒</text>
+    </view>
+
+    <!-- 按钮 -->
+    <view class="victory-buttons">
+      <button class="btn-success victory-btn-main" bindtap="onNextLevel">
+        ▶ 下一关
+      </button>
+      <view class="btn-row">
+        <button class="btn-secondary" bindtap="onReplay">🔄 再来一局</button>
+        <button class="btn-primary" open-type="share" bindtap="onShare">📤 分享好友</button>
+      </view>
+      <view class="ad-reward" bindtap="onRewardAd">
+        <text>🎬 看广告额外奖励</text>
+      </view>
+    </view>
+  </view>
+</view>

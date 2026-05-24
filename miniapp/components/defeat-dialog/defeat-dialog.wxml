@@ -1,0 +1,32 @@
+<!-- components/defeat-dialog/defeat-dialog.wxml - 失败弹窗 -->
+<view class="dialog-mask" bindtap="stopPropagation">
+  <view class="defeat-card" catchtap="stopPropagation">
+    <!-- 失败图标 -->
+    <view class="defeat-icon">{{icon}}</view>
+
+    <!-- 标题 -->
+    <view class="defeat-title">挑战失败</view>
+
+    <!-- 失败原因 -->
+    <view class="defeat-reason">
+      <text class="reason-label">失败原因：</text>
+      <text class="reason-text">{{reason}}</text>
+    </view>
+
+    <!-- 提示 -->
+    <view class="defeat-tip">{{tipText}}</view>
+
+    <!-- 关卡信息 -->
+    <view class="defeat-level">第{{level}}关</view>
+
+    <!-- 按钮 -->
+    <view class="defeat-buttons">
+      <button class="btn-primary defeat-btn-main" bindtap="onRetry">
+        🔄 重新挑战
+      </button>
+      <button class="btn-secondary defeat-btn-revive" bindtap="onRevive">
+        🎬 看广告复活
+      </button>
+    </view>
+  </view>
+</view>

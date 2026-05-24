@@ -1,0 +1,92 @@
+<!-- pages/ranking/ranking.wxml - 好友排行榜 -->
+<view class="page-ranking">
+  <!-- 顶部我的排名 -->
+  <view class="my-rank-card">
+    <view class="my-rank-inner">
+      <view class="my-rank-left">
+        <view class="my-avatar">
+          <image
+            wx:if="{{userInfo.avatarUrl}}"
+            class="avatar-img"
+            src="{{userInfo.avatarUrl}}"
+            mode="aspectFill"
+          />
+          <text wx:else class="avatar-placeholder">👤</text>
+        </view>
+        <view class="my-info">
+          <text class="my-name">{{userInfo.nickName || '我'}}</text>
+          <text class="my-level">最高通关：第{{myScore}}关</text>
+        </view>
+      </view>
+      <view class="my-rank-badge" wx:if="{{myRank}}">
+        <text class="rank-num">NO.{{myRank}}</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 排行榜标题 -->
+  <view class="rank-header">
+    <text class="rank-title">🏆 好友排行榜</text>
+    <view class="rank-actions">
+      <text class="action-btn" bindtap="onShare">📤 分享</text>
+    </view>
+  </view>
+
+  <!-- 排行榜列表 -->
+  <scroll-view class="rank-list" scroll-y wx:if="{{!loading && !showOpenData}}">
+    <view
+      class="rank-item {{item.isMe ? 'is-me' : ''}}"
+      wx:for="{{rankList}}"
+      wx:key="rank"
+    >
+      <view class="rank-badge {{item.rank <= 3 ? 'top' + item.rank : ''}}">
+        <text wx:if="{{item.rank === 1}}">🥇</text>
+        <text wx:elif="{{item.rank === 2}}">🥈</text>
+        <text wx:elif="{{item.rank === 3}}">🥉</text>
+        <text wx:else class="rank-num-text">{{item.rank}}</text>
+      </view>
+      <image
+        class="rank-avatar"
+        src="{{item.avatarUrl}}"
+        mode="aspectFill"
+        wx:if="{{item.avatarUrl}}"
+      />
+      <view wx:else class="rank-avatar-placeholder">👤</view>
+      <view class="rank-info">
+        <text class="rank-nickname">{{item.nickName}}</text>
+        <text class="rank-level">第{{item.highestLevel}}关</text>
+      </view>
+    </view>
+
+    <!-- 空状态 -->
+    <view class="empty-state" wx:if="{{rankList.length === 0}}">
+      <text class="empty-icon">🏆</text>
+      <text class="empty-text">还没有好友数据</text>
+      <text class="empty-hint">快分享给好友一起挑战吧！</text>
+    </view>
+  </scroll-view>
+
+  <!-- 加载中 -->
+  <view class="loading-state" wx:if="{{loading}}">
+    <text>加载中...</text>
+  </view>
+
+  <!-- 使用开放数据域（后备方案） -->
+  <view class="open-data-area" wx:if="{{showOpenData && !loading}}">
+    <open-data class="od-item" type="groupName" open-gid="{{groupId}}" lang="zh_CN" wx:if="{{false}}"></open-data>
+    <view class="placeholder-text">
+      <text class="placeholder-hint">好友排行数据需要通过微信开放数据域获取</text>
+      <text class="placeholder-hint">请在真机调试或正式版本中查看</text>
+    </view>
+  </view>
+
+  <!-- 底部按钮 -->
+  <view class="rank-footer">
+    <button class="btn-primary" bindtap="onRefresh">
+      🔄 刷新排行
+    </button>
+    <button class="btn-secondary" bindtap="onBack">
+      ← 返回
+    </button>
+  </view>
+</view>

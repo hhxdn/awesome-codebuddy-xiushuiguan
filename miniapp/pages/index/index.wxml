@@ -1,0 +1,95 @@
+<!-- pages/index/index.wxml - 游戏首页 -->
+<view class="page-index">
+  <!-- 品牌渐变背景区域 -->
+  <view class="header-area" style="padding-top: {{statusBarHeight}}px;">
+    <view class="header-content">
+      <view class="title-decorator">
+        <text class="decorator-icon">🔧</text>
+      </view>
+      <view class="title-text">水管维修工</view>
+      <view class="subtitle-text">Pipe Repair Master</view>
+    </view>
+  </view>
+
+  <!-- 装饰区域 - 卡通场景 -->
+  <view class="scene-area">
+    <view class="scene-ground"></view>
+    <!-- 维修车 -->
+    <view class="scene-truck">
+      <view class="truck-body">
+        <view class="truck-window"></view>
+      </view>
+      <view class="truck-wheel truck-wheel-l"></view>
+      <view class="truck-wheel truck-wheel-r"></view>
+    </view>
+    <!-- 工人 -->
+    <view class="scene-worker">
+      <view class="worker-head">
+        <view class="worker-hat"></view>
+        <view class="worker-face">😊</view>
+      </view>
+      <view class="worker-body"></view>
+    </view>
+    <!-- 水管装饰 -->
+    <view class="scene-pipe pipe-1"></view>
+    <view class="scene-pipe pipe-2"></view>
+    <view class="scene-water water-1"></view>
+  </view>
+
+  <!-- 最高关卡信息 -->
+  <view class="level-info" wx:if="{{highestLevel > 0}}">
+    <text class="level-label">最高通关：</text>
+    <text class="level-value">第{{highestLevel}}关</text>
+  </view>
+
+  <!-- 主按钮区域 -->
+  <view class="btn-area">
+    <button class="btn-primary btn-start" bindtap="onStartGame">
+      <text class="btn-icon">▶</text>
+      <text>开始游戏</text>
+    </button>
+
+    <button class="btn-secondary btn-levels" bindtap="onLevelSelect">
+      <text class="btn-icon">📋</text>
+      <text>关卡选择</text>
+    </button>
+
+    <view class="btn-row">
+      <button class="btn-small btn-rank" bindtap="onRanking">
+        <text>🏆 排行榜</text>
+      </button>
+      <button class="btn-small btn-settings" bindtap="onSettings">
+        <text>⚙️ 设置</text>
+      </button>
+    </view>
+  </view>
+
+  <!-- Banner 广告占位区 -->
+  <view class="ad-banner">
+    <text class="ad-text">- 广告位 -</text>
+    <ad unit-id="adunit-placeholder" ad-type="banner" binderror="onAdError"></ad>
+  </view>
+
+  <!-- 底部版权信息 -->
+  <view class="footer-area">
+    <text class="footer-copyright">©2026 水管维修工 All Rights Reserved</text>
+    <text class="footer-privacy" bindtap="onPrivacyPolicy">隐私政策</text>
+  </view>
+
+  <!-- 隐私政策弹窗 -->
+  <view class="dialog-mask" wx:if="{{showPrivacy}}" bindtap="onClosePrivacy">
+    <view class="dialog-card" catchtap="stopPropagation" style="max-height: 70vh; overflow-y: auto;">
+      <view class="dialog-title">隐私政策</view>
+      <view class="privacy-content">
+        <text>本游戏尊重并保护所有用户的个人隐私权。\n\n</text>
+        <text>1. 信息收集：我们可能会收集您的微信昵称、头像等基本信息，仅用于游戏排行榜展示。\n\n</text>
+        <text>2. 信息使用：您的个人信息仅用于提升游戏体验，不会用于其他商业用途。\n\n</text>
+        <text>3. 信息披露：我们不会向第三方披露您的个人信息，法律法规要求除外。\n\n</text>
+        <text>4. 信息安全：我们采用行业标准安全措施保护您的个人信息。\n\n</text>
+        <text>5. 广告服务：游戏可能包含第三方广告SDK，广告SDK可能收集设备标识等信息。\n\n</text>
+        <text>如有疑问，请联系我们。</text>
+      </view>
+      <button class="btn-primary" style="margin-top: 20rpx;" bindtap="onClosePrivacy">我知道了</button>
+    </view>
+  </view>
+</view>
