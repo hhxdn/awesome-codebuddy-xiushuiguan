@@ -29,7 +29,7 @@
     >
       <view class="level-number">{{item.level}}</view>
       <view class="level-stars" wx:if="{{item.cleared}}">
-        <text wx:for="{{[1,2,3]}}" wx:key="*this" class="star {{*this <= item.stars ? 'active' : ''}}">★</text>
+        <text wx:for="{{[1,2,3]}}" wx:for-item="starNum" wx:key="*this" class="star {{starNum <= item.stars ? 'active' : ''}}">★</text>
       </view>
       <view class="level-lock" wx:if="{{!item.unlocked}}">🔒</view>
       <view class="level-current-icon" wx:if="{{item.current && item.unlocked}}">🔧</view>
