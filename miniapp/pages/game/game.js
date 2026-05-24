@@ -146,11 +146,11 @@ Page({
       maxHp: 100
     })
 
-    // 根据场景生成水管位置
+    // 先放车，再生成水管（让水管避开车辆位置）
     const sceneIndex = config.sceneType
+    this.placeCar(sceneIndex)
     this.generatePipes(config.pipeCount, sceneIndex)
     this.generateWaterRegions(sceneIndex)
-    this.placeCar(sceneIndex)
     this.placeWorker(sceneIndex)
 
     // 重置 UI 状态追踪
@@ -168,6 +168,24 @@ Page({
     this.stopPowerUpTimer()
   },
 
+  // 水管之间最小间距（避免视觉重叠）
+  _PIPE_MIN_DIST: 55,
+
+  // 检测位置是否与已有水管重叠
+  _isOverlappingPipes(x, y) {
+    for (const pipe of this.pipes) {
+      const dist = Math.hypot(x - pipe.x, y - pipe.y)
+      if (dist < this._PIPE_MIN_DIST) return true
+    }
+    return false
+  },
+
+  // 检测位置是否与维修车重叠
+  _isOverlappingCar(x, y) {
+    const dist = Math.hypot(x - this.carX, y - this.carY)
+    return dist < 65  // 车身半径 ~30 + 水管半宽 ~22 + 余量
+  },
+
   // 生成水管
   generatePipes(count, sceneIndex) {
     this.pipes = []
@@ -177,28 +195,35 @@ Page({
 
     for (let i = 0; i < count; i++) {
       let x, y
-      switch (sceneIndex) {
-        case 0: // 住宅区：右侧集中
-          x = CANVAS_W * 0.6 + Math.random() * (CANVAS_W * 0.35)
-          y = margin + Math.random() * h
-          break
-        case 1: // 商业区：左右分散
-          x = margin + Math.random() * w
-          y = margin + Math.random() * h
-          break
-        case 2: // 工业区：全屏散落
-          x = margin * 0.5 + Math.random() * (CANVAS_W - margin)
-          y = margin * 0.3 + Math.random() * (CANVAS_H - margin - 30)
-          break
-        case 3: // 地下管道：底部密集
-          x = margin + Math.random() * w
-          y = CANVAS_H * 0.4 + Math.random() * (CANVAS_H * 0.5)
-          break
-        case 4: // 河边管道：水平排列
-          x = margin + Math.random() * w
-          y = margin * 0.5 + Math.random() * (CANVAS_H * 0.4)
-          break
-      }
+      let attempts = 0
+      const maxAttempts = 100
+
+      // 重试直到找到不重叠的位置
+      do {
+        switch (sceneIndex) {
+          case 0: // 住宅区：右侧集中
+            x = CANVAS_W * 0.6 + Math.random() * (CANVAS_W * 0.35)
+            y = margin + Math.random() * h
+            break
+          case 1: // 商业区：左右分散
+            x = margin + Math.random() * w
+            y = margin + Math.random() * h
+            break
+          case 2: // 工业区：全屏散落
+            x = margin * 0.5 + Math.random() * (CANVAS_W - margin)
+            y = margin * 0.3 + Math.random() * (CANVAS_H - margin - 30)
+            break
+          case 3: // 地下管道：底部密集
+            x = margin + Math.random() * w
+            y = CANVAS_H * 0.4 + Math.random() * (CANVAS_H * 0.5)
+            break
+          case 4: // 河边管道：水平排列
+            x = margin + Math.random() * w
+            y = margin * 0.5 + Math.random() * (CANVAS_H * 0.4)
+            break
+        }
+        attempts++
+      } while ((this._isOverlappingPipes(x, y) || this._isOverlappingCar(x, y)) && attempts < maxAttempts)
 
       const isLeaking = i < this.data.levelConfig.leakCount
       // 高压水管分配：从末尾开始标记（保证初始漏水中的高压管数量合理）
@@ -352,15 +377,26 @@ Page({
     }
   },
 
-  // 在地图上生成随机道具
+  // 在地图上生成随机道具（避免与水管和车辆重叠）
   spawnPowerUp() {
     // 限制地图上最多3个道具
     if (this.powerUps.length >= 3) return
     const types = Object.values(POWERUP_TYPES)
     const type = types[Math.floor(Math.random() * types.length)]
     const margin = 50
-    const x = margin + Math.random() * (CANVAS_W - margin * 2)
-    const y = margin + Math.random() * (CANVAS_H - margin * 2 - 60)
+
+    let x, y, attempts = 0
+    const maxAttempts = 50
+    do {
+      x = margin + Math.random() * (CANVAS_W - margin * 2)
+      y = margin + Math.random() * (CANVAS_H - margin * 2 - 60)
+      attempts++
+    } while (attempts < maxAttempts && (
+      this._isOverlappingPipes(x, y) ||
+      this._isOverlappingCar(x, y) ||
+      this.powerUps.some(pu => Math.hypot(x - pu.x, y - pu.y) < 40)
+    ))
+
     this.powerUps.push({
       x, y,
       type: type.key,
