@@ -47,6 +47,11 @@ Page({
   renderTimer: null,
   frameCount: 0,
   touchStartX: 0,
+  _lastNearCar: false,
+  _lastNearLeak: false,
+  _lastHp: 100,
+  _canvasReady: false,
+  _pendingStart: false,
 
   onLoad(options) {
     const level = parseInt(options.level) || 1
@@ -56,7 +61,7 @@ Page({
 
   onReady() {
     this.initCanvas()
-    this.startGame()
+    this._pendingStart = true
   },
 
   onHide() {
@@ -98,6 +103,11 @@ Page({
     this.generateWaterRegions(sceneIndex)
     this.placeCar(sceneIndex)
     this.placeWorker(sceneIndex)
+
+    // 重置 UI 状态追踪
+    this._lastNearCar = false
+    this._lastNearLeak = false
+    this._lastHp = 100
   },
 
   // 生成水管
@@ -169,8 +179,15 @@ Page({
         canvas.width = CANVAS_W * dpr
         canvas.height = CANVAS_H * dpr
         ctx.scale(dpr, dpr)
+        this.canvasNode = canvas
         this.canvas = canvas
         this.ctx = ctx
+        this._canvasReady = true
+        // Canvas 就绪后启动游戏
+        if (this._pendingStart) {
+          this._pendingStart = false
+          this.startGame()
+        }
       }
     })
   },
@@ -184,12 +201,19 @@ Page({
 
   // 启动游戏循环
   startGameLoop() {
+    const canvas = this.canvasNode
+    const raf = canvas && canvas.requestAnimationFrame ? canvas.requestAnimationFrame.bind(canvas) : setTimeout
+    const cancelRaf = canvas && canvas.cancelAnimationFrame ? canvas.cancelAnimationFrame.bind(canvas) : clearTimeout
+
+    // 保存取消函数引用
+    this._cancelRaf = cancelRaf
+
     const loop = () => {
       if (this.data.gameState !== STATE.PLAYING) return
       this.frameCount++
       this.update()
       this.render()
-      this.renderTimer = requestAnimationFrame(loop)
+      this.renderTimer = raf(loop)
     }
     loop()
   },
@@ -218,7 +242,13 @@ Page({
   stopAllTimers() {
     if (this.gameTimer) clearInterval(this.gameTimer)
     if (this.waterTimer) clearInterval(this.waterTimer)
-    if (this.renderTimer) cancelAnimationFrame(this.renderTimer)
+    if (this.renderTimer) {
+      if (this._cancelRaf) {
+        this._cancelRaf(this.renderTimer)
+      } else {
+        clearTimeout(this.renderTimer)
+      }
+    }
   },
 
   // 触摸事件
@@ -266,11 +296,15 @@ Page({
       }
     }
 
-    // 更新按钮显示
-    this.setData({
-      showPickupBtn: nearCar && !nearLeakingPipe,
-      showRepairBtn: nearLeakingPipe && !nearCar
-    })
+    // 更新按钮显示（仅在状态变化时 setData，避免每帧都触发渲染）
+    if (this._lastNearCar !== nearCar || this._lastNearLeak !== nearLeakingPipe) {
+      this._lastNearCar = nearCar
+      this._lastNearLeak = nearLeakingPipe
+      this.setData({
+        showPickupBtn: nearCar && !nearLeakingPipe,
+        showRepairBtn: nearLeakingPipe && !nearCar
+      })
+    }
 
     // 检查积水伤害
     this.checkWaterDamage()
@@ -286,10 +320,17 @@ Page({
           let hp = this.data.hp - (10 / 60) // 每秒10点，60fps
           if (hp <= 0) {
             hp = 0
+            this.setData({ hp: 0 })
             this.gameOver('hp')
             return
           }
-          this.setData({ hp: Math.max(0, Math.floor(hp)) })
+          // 节流：每 15 帧（约 0.25 秒）才 setData 一次
+          if (this.frameCount % 15 === 0 || Math.abs(this._lastHp - hp) > 2) {
+            this._lastHp = hp
+            this.setData({ hp: Math.max(0, Math.floor(hp)) })
+          } else {
+            this.data.hp = Math.max(0, Math.floor(hp))
+          }
           break
         }
       }
@@ -640,7 +681,9 @@ Page({
     const userInfo = app.globalData.userInfo || {}
     const level = this.data.level
     // 更新本地最高关卡
-    const savedLevel = wx.getStorageSync('highestLevel') || 0
+    // 安全读取 highestLevel
+    let savedLevel = 0
+    try { savedLevel = wx.getStorageSync('highestLevel') || 0 } catch (e) {}
     if (isWin && level > savedLevel) {
       wx.setStorageSync('highestLevel', level)
     }

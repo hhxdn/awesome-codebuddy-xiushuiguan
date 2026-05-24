@@ -11,11 +11,11 @@ App({
   },
 
   onLaunch() {
-    // 恢复本地设置
-    const soundEnabled = wx.getStorageSync('soundEnabled');
-    const vibrateEnabled = wx.getStorageSync('vibrateEnabled');
-    if (soundEnabled !== '') this.globalData.soundEnabled = soundEnabled;
-    if (vibrateEnabled !== '') this.globalData.vibrateEnabled = vibrateEnabled;
+    // 恢复本地设置（safeGetStorageSync 处理 key 不存在抛异常的问题）
+    const soundEnabled = this.safeGetStorage('soundEnabled');
+    const vibrateEnabled = this.safeGetStorage('vibrateEnabled');
+    if (soundEnabled !== null) this.globalData.soundEnabled = soundEnabled;
+    if (vibrateEnabled !== null) this.globalData.vibrateEnabled = vibrateEnabled;
 
     // 微信登录
     this.wxLogin();
@@ -36,8 +36,8 @@ App({
                 this.globalData.token = data.token;
                 this.globalData.openid = data.openid;
                 this.globalData.userInfo = data.userInfo;
-                wx.setStorageSync('token', data.token);
-                wx.setStorageSync('userInfo', data.userInfo);
+                this.safeSetStorage('token', data.token);
+                this.safeSetStorage('userInfo', data.userInfo);
               }
             },
             fail: (err) => {
@@ -54,7 +54,25 @@ App({
 
   // 获取全局token
   getToken() {
-    return this.globalData.token || wx.getStorageSync('token') || '';
+    return this.globalData.token || this.safeGetStorage('token') || '';
+  },
+
+  // 安全读取 Storage（key 不存在不会抛异常）
+  safeGetStorage(key) {
+    try {
+      return wx.getStorageSync(key);
+    } catch (e) {
+      return null;
+    }
+  },
+
+  // 安全写入 Storage
+  safeSetStorage(key, value) {
+    try {
+      wx.setStorageSync(key, value);
+    } catch (e) {
+      console.error('Storage 写入失败', key, e);
+    }
   },
 
   // 播放音效

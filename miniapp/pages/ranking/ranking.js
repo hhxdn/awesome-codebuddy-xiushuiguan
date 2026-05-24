@@ -29,7 +29,8 @@ Page({
 
   // 更新当前用户信息
   updateUserInfo() {
-    const userInfo = wx.getStorageSync('userInfo')
+    let userInfo = null
+    try { userInfo = wx.getStorageSync('userInfo') } catch (e) {}
     if (userInfo) {
       this.setData({ userInfo })
     }

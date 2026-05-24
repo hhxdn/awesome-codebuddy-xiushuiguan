@@ -1,4 +1,31 @@
 // utils/storage.js - 本地存储管理
+
+// 安全读写封装 - 解决 wx.getStorageSync key不存在时抛异常的问题
+function safeGet(key, defaultValue = null) {
+  try {
+    const val = wx.getStorageSync(key);
+    return val !== '' ? val : defaultValue;
+  } catch (e) {
+    return defaultValue;
+  }
+}
+
+function safeSet(key, value) {
+  try {
+    wx.setStorageSync(key, value);
+  } catch (e) {
+    console.error('Storage 写入失败', key, e);
+  }
+}
+
+function safeRemove(key) {
+  try {
+    wx.removeStorageSync(key);
+  } catch (e) {
+    console.error('Storage 删除失败', key, e);
+  }
+}
+
 const KEYS = {
   HIGHEST_LEVEL: 'highestLevel',       // 最高通关关卡
   GAME_PROGRESS: 'gameProgress',       // 游戏进度 {level, stars}
@@ -13,7 +40,7 @@ const KEYS = {
  * 获取最高通关关卡
  */
 function getHighestLevel() {
-  return wx.getStorageSync(KEYS.HIGHEST_LEVEL) || 0;
+  return safeGet(KEYS.HIGHEST_LEVEL, 0);
 }
 
 /**
@@ -22,7 +49,7 @@ function getHighestLevel() {
 function setHighestLevel(level) {
   const current = getHighestLevel();
   if (level > current) {
-    wx.setStorageSync(KEYS.HIGHEST_LEVEL, level);
+    safeSet(KEYS.HIGHEST_LEVEL, level);
   }
 }
 
@@ -30,7 +57,7 @@ function setHighestLevel(level) {
  * 获取游戏进度
  */
 function getGameProgress() {
-  return wx.getStorageSync(KEYS.GAME_PROGRESS) || { level: 1, stars: {} };
+  return safeGet(KEYS.GAME_PROGRESS, { level: 1, stars: {} });
 }
 
 /**
@@ -49,7 +76,7 @@ function saveGameProgress(level, stars) {
       progress.stars[level] = stars;
     }
   }
-  wx.setStorageSync(KEYS.GAME_PROGRESS, progress);
+  safeSet(KEYS.GAME_PROGRESS, progress);
   // 同时更新最高关卡
   if (level > getHighestLevel()) {
     setHighestLevel(level);
@@ -68,39 +95,37 @@ function getLevelStars(level) {
  * 获取音效设置
  */
 function getSoundEnabled() {
-  const val = wx.getStorageSync(KEYS.SOUND_ENABLED);
-  return val === '' ? true : val;
+  return safeGet(KEYS.SOUND_ENABLED, true);
 }
 
 /**
  * 设置音效开关
  */
 function setSoundEnabled(enabled) {
-  wx.setStorageSync(KEYS.SOUND_ENABLED, enabled);
+  safeSet(KEYS.SOUND_ENABLED, enabled);
 }
 
 /**
  * 获取震动设置
  */
 function getVibrateEnabled() {
-  const val = wx.getStorageSync(KEYS.VIBRATE_ENABLED);
-  return val === '' ? true : val;
+  return safeGet(KEYS.VIBRATE_ENABLED, true);
 }
 
 /**
  * 设置震动开关
  */
 function setVibrateEnabled(enabled) {
-  wx.setStorageSync(KEYS.VIBRATE_ENABLED, enabled);
+  safeSet(KEYS.VIBRATE_ENABLED, enabled);
 }
 
 /**
  * 清除所有游戏缓存进度
  */
 function clearAllCache() {
-  wx.removeStorageSync(KEYS.HIGHEST_LEVEL);
-  wx.removeStorageSync(KEYS.GAME_PROGRESS);
-  wx.removeStorageSync(KEYS.LEVEL_STARS);
+  safeRemove(KEYS.HIGHEST_LEVEL);
+  safeRemove(KEYS.GAME_PROGRESS);
+  safeRemove(KEYS.LEVEL_STARS);
 }
 
 /**
