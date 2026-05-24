@@ -66,6 +66,16 @@ Page({
     this.setData({ showPrivacy: false });
   },
 
+  // 广告加载成功
+  onAdLoad(e) {
+    console.log('广告加载成功', e.detail)
+  },
+
+  // 广告加载错误
+  onAdError(e) {
+    console.error('广告加载错误', e.detail)
+  },
+
   // 阻止弹窗冒泡
   stopPropagation() {}
 });

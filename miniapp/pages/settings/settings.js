@@ -2,7 +2,6 @@
 const app = getApp();
 const storage = require('../../utils/storage');
 const audio = require('../../utils/audio');
-const util = require('../../utils/util');
 
 Page({
   data: {

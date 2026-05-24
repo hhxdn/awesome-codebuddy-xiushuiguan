@@ -1,7 +1,7 @@
 // utils/request.js - 网络请求封装
 const app = getApp();
 
-const baseUrl = 'http://127.0.0.1:8080';
+const baseUrl = getApp().globalData.baseUrl || 'http://127.0.0.1:6001';
 
 /**
  * 发起HTTP请求
@@ -20,11 +20,11 @@ function request(options) {
       },
       success: (res) => {
         if (res.statusCode === 200) {
-          if (res.data.code === 0) {
+          if (res.data.code === 200) {
             resolve(res.data.data);
           } else {
             wx.showToast({
-              title: res.data.msg || '请求失败',
+              title: res.data.message || '请求失败',
               icon: 'none'
             });
             reject(res.data);

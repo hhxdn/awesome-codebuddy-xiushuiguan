@@ -31,7 +31,7 @@ Component({
 
   methods: {
     onNextLevel() {
-      this.triggerEvent('nextlevel');
+      this.triggerEvent('next');
     },
 
     onReplay() {
@@ -43,7 +43,7 @@ Component({
     },
 
     onRewardAd() {
-      this.triggerEvent('rewardad');
+      this.triggerEvent('watchad');
     },
 
     // 阻止冒泡

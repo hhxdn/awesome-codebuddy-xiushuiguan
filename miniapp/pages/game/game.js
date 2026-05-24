@@ -59,6 +59,23 @@ Page({
     this.startGame()
   },
 
+  onHide() {
+    // 切后台时暂停计时器和动画循环
+    if (this.data.gameState === STATE.PLAYING) {
+      this.stopAllTimers()
+      this._wasPlaying = true
+    }
+  },
+
+  onShow() {
+    // 从后台回来恢复游戏
+    if (this._wasPlaying && this.data.gameState === STATE.PLAYING) {
+      this.startTimers()
+      this.startGameLoop()
+    }
+    this._wasPlaying = false
+  },
+
   onUnload() {
     this.stopAllTimers()
   },
@@ -76,7 +93,7 @@ Page({
     })
 
     // 根据场景生成水管位置
-    const sceneIndex = config.sceneIndex
+    const sceneIndex = config.sceneType
     this.generatePipes(config.pipeCount, sceneIndex)
     this.generateWaterRegions(sceneIndex)
     this.placeCar(sceneIndex)
@@ -107,7 +124,7 @@ Page({
           break
       }
 
-      const isLeaking = i < this.data.levelConfig.initialLeaks
+      const isLeaking = i < this.data.levelConfig.leakCount
       this.pipes.push({
         x, y,
         id: i,
@@ -304,7 +321,7 @@ Page({
     }
 
     // 随机爆管
-    if (this.data.levelConfig && Math.random() < this.data.levelConfig.burstProbability / 60) {
+    if (this.data.levelConfig && Math.random() < this.data.levelConfig.burstProb / 60) {
       const unrepairedLeaking = this.pipes.filter(p => p.isLeaking && !p.isRepaired)
       if (unrepairedLeaking.length < this.pipes.length) {
         const candidates = this.pipes.filter(p => !p.isLeaking)
@@ -592,8 +609,7 @@ Page({
     if (remainingLeaks.length === 0) {
       this.stopAllTimers()
       const timeUsed = this.data.levelConfig.timeLimit - this.data.timeLeft
-      const stars = timeUsed < this.data.levelConfig.timeLimit * 0.5 ? 3
-        : timeUsed < this.data.levelConfig.timeLimit * 0.75 ? 2 : 1
+      const stars = levelUtil.calcStars(timeUsed, this.data.levelConfig)
 
       this.setData({
         gameState: STATE.WIN,
@@ -630,18 +646,16 @@ Page({
     }
 
     // 提交到后端
-    wx.request({
-      url: `${app.globalData.baseUrl}/api/game/result`,
-      method: 'POST',
-      data: {
-        userId: userInfo.id,
-        level,
-        stars,
-        timeUsed,
-        isWin,
-        failReason: isWin ? null : this.data.defeatReason
-      },
-      header: { 'content-type': 'application/json' }
+    const request = require('../../utils/request')
+    request.post('/api/game/result', {
+      userId: userInfo.id,
+      level,
+      stars,
+      timeUsed,
+      isWin,
+      failReason: isWin ? null : this.data.defeatReason
+    }).catch(() => {
+      // 提交失败不影响游戏体验
     })
   },
 
@@ -674,7 +688,7 @@ Page({
 
   // 弹窗事件 - 激励视频
   onSelectReward(e) {
-    const rewardId = e.detail.rewardId
+    const rewardId = e.detail.type
     // 模拟观看广告
     wx.showToast({ title: '广告播放中...', icon: 'loading', duration: 1500 })
     setTimeout(() => {

@@ -4,7 +4,7 @@ App({
     userInfo: null,
     token: '',
     openid: '',
-    baseUrl: 'http://127.0.0.1:8080',
+    baseUrl: 'http://127.0.0.1:6001',
     soundEnabled: true,
     vibrateEnabled: true,
     maxLevel: 10000
@@ -31,7 +31,7 @@ App({
             data: { code: res.code },
             header: { 'content-type': 'application/json' },
             success: (resp) => {
-              if (resp.data && resp.data.code === 0) {
+              if (resp.data && resp.data.code === 200) {
                 const data = resp.data.data;
                 this.globalData.token = data.token;
                 this.globalData.openid = data.openid;
@@ -45,6 +45,9 @@ App({
             }
           });
         }
+      },
+      fail: (err) => {
+        console.error('wx.login 调用失败', err);
       }
     });
   },

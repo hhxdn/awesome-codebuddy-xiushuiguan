@@ -44,7 +44,7 @@ Component({
     },
 
     onRevive() {
-      this.triggerEvent('revive');
+      this.triggerEvent('watchad');
     },
 
     stopPropagation() {}

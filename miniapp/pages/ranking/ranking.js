@@ -10,17 +10,29 @@ Page({
     rankList: [],
     loading: false,
     hasError: false,
-    showOpenData: false // 是否显示开放数据域
+    showOpenData: false, // 是否显示开放数据域
+    userInfo: null
   },
 
   onShow() {
     this.loadRanking();
+    this.updateUserInfo();
   },
 
   onPullDownRefresh() {
     this.loadRanking().then(() => {
       wx.stopPullDownRefresh();
+    }).catch(() => {
+      wx.stopPullDownRefresh();
     });
+  },
+
+  // 更新当前用户信息
+  updateUserInfo() {
+    const userInfo = wx.getStorageSync('userInfo')
+    if (userInfo) {
+      this.setData({ userInfo })
+    }
   },
 
   // 加载排行榜数据
