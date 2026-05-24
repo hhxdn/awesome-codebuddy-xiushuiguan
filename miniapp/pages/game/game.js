@@ -1,6 +1,21 @@
 const app = getApp()
 const levelUtil = require('../../utils/level')
 
+// 工具函数：圆角矩形
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath()
+  ctx.moveTo(x + r, y)
+  ctx.lineTo(x + w - r, y)
+  ctx.arcTo(x + w, y, x + w, y + r, r)
+  ctx.lineTo(x + w, y + h - r)
+  ctx.arcTo(x + w, y + h, x + w - r, y + h, r)
+  ctx.lineTo(x + r, y + h)
+  ctx.arcTo(x, y + h, x, y + h - r, r)
+  ctx.lineTo(x, y + r)
+  ctx.arcTo(x, y, x + r, y, r)
+  ctx.closePath()
+}
+
 // 游戏状态常量
 const STATE = { IDLE: 'idle', PLAYING: 'playing', PAUSED: 'paused', WIN: 'win', LOSE: 'lose' }
 const CANVAS_W = 375
@@ -38,15 +53,20 @@ Page({
   workerX: 100,
   workerY: 300,
   workerTargetX: 100,
+  workerTargetY: 300,
+  workerFacing: 1,        // 1=右 -1=左
   pipes: [],
   carX: 50,
   carY: 300,
   waterRegions: [],
+  waterParticles: [],     // 水花粒子效果
+  repairParticles: [],    // 维修火花粒子
   gameTimer: null,
   waterTimer: null,
   renderTimer: null,
   frameCount: 0,
   touchStartX: 0,
+  touchStartY: 0,
   _lastNearCar: false,
   _lastNearLeak: false,
   _lastHp: 100,
@@ -166,6 +186,8 @@ Page({
     this.workerX = this.carX + 40
     this.workerY = this.carY
     this.workerTargetX = this.workerX
+    this.workerTargetY = this.workerY
+    this.workerFacing = 1
   },
 
   // 初始化Canvas
@@ -251,17 +273,26 @@ Page({
     }
   },
 
-  // 触摸事件
+  // 触摸事件 - 全向拖拽移动
   onTouchStart(e) {
     this.touchStartX = e.touches[0].x
+    this.touchStartY = e.touches[0].y
   },
 
   onTouchMove(e) {
     if (this.data.gameState !== STATE.PLAYING) return
     const dx = e.touches[0].x - this.touchStartX
-    this.workerTargetX += dx * 0.5
+    const dy = e.touches[0].y - this.touchStartY
+    // 更新目标位置（跟随手指拖拽）
+    this.workerTargetX += dx * 0.6
+    this.workerTargetY += dy * 0.6
+    // 边界限制
     this.workerTargetX = Math.max(20, Math.min(CANVAS_W - 20, this.workerTargetX))
+    this.workerTargetY = Math.max(30, Math.min(CANVAS_H - 40, this.workerTargetY))
+    // 记录朝向
+    if (Math.abs(dx) > 1) this.workerFacing = dx > 0 ? 1 : -1
     this.touchStartX = e.touches[0].x
+    this.touchStartY = e.touches[0].y
   },
 
   onTouchEnd() {
@@ -272,11 +303,18 @@ Page({
   update() {
     if (this.data.gameState !== STATE.PLAYING) return
 
-    // 移动工人
+    // 移动工人 - 全向移动
     const dx = this.workerTargetX - this.workerX
-    if (Math.abs(dx) > 1) {
-      this.workerX += Math.sign(dx) * Math.min(WORKER_SPEED, Math.abs(dx))
+    const dy = this.workerTargetY - this.workerY
+    const dist = Math.hypot(dx, dy)
+    if (dist > 1) {
+      const speed = Math.min(WORKER_SPEED, dist)
+      this.workerX += (dx / dist) * speed
+      this.workerY += (dy / dist) * speed
     }
+
+    // 更新水花粒子
+    this.updateParticles()
 
     // 检查与车辆的交互
     const distToCar = Math.hypot(this.workerX - this.carX, this.workerY - this.carY)
@@ -395,205 +433,737 @@ Page({
     const ctx = this.ctx
     if (!ctx) return
 
-    // 清屏 - 背景
-    ctx.fillStyle = '#E3F2FD'
-    ctx.fillRect(0, 0, CANVAS_W, CANVAS_H)
+    // ===== 背景场景 =====
+    this.renderBackground(ctx)
 
-    // 绘制地面
-    ctx.fillStyle = '#BBDEFB'
-    ctx.fillRect(0, CANVAS_H - 30, CANVAS_W, 30)
-    ctx.fillStyle = '#90CAF9'
-    ctx.fillRect(0, CANVAS_H - 5, CANVAS_W, 5)
-
-    // 绘制积水
+    // ===== 积水区域 =====
     this.renderWater(ctx)
 
-    // 绘制维修车
-    this.renderCar(ctx)
-
-    // 绘制水管
+    // ===== 水管系统 =====
     this.renderPipes(ctx)
 
-    // 绘制工人
+    // ===== 维修车 =====
+    this.renderCar(ctx)
+
+    // ===== 粒子效果 =====
+    this.renderParticles(ctx)
+
+    // ===== 工人角色 =====
     this.renderWorker(ctx)
+
+    // ===== 场景前景（围栏、警示带等） =====
+    this.renderForeground(ctx)
   },
 
-  // 渲染积水
-  renderWater(ctx) {
-    for (const region of this.waterRegions) {
-      if (region.radius < 3) continue
-      const gradient = ctx.createRadialGradient(region.x, region.y, 0, region.x, region.y, region.radius)
-      gradient.addColorStop(0, 'rgba(33, 150, 243, 0.4)')
-      gradient.addColorStop(0.6, 'rgba(33, 150, 243, 0.2)')
-      gradient.addColorStop(1, 'rgba(33, 150, 243, 0)')
-      ctx.fillStyle = gradient
+  // ============ 背景场景 ============
+  renderBackground(ctx) {
+    // 天空渐变
+    const skyGrad = ctx.createLinearGradient(0, 0, 0, CANVAS_H)
+    skyGrad.addColorStop(0, '#87CEEB')
+    skyGrad.addColorStop(0.4, '#B0D4F1')
+    skyGrad.addColorStop(0.7, '#C5D9E8')
+    skyGrad.addColorStop(1, '#8FA4B0')
+    ctx.fillStyle = skyGrad
+    ctx.fillRect(0, 0, CANVAS_W, CANVAS_H)
+
+    // 远处建筑轮廓
+    ctx.fillStyle = '#B0BEC5'
+    for (let i = 0; i < 6; i++) {
+      const bx = i * 65 - 10
+      const bh = 40 + (i % 3) * 25
+      ctx.fillRect(bx, CANVAS_H - 60 - bh, 55, bh + 20)
+    }
+
+    // 地面 - 工业厂房地板
+    const floorGrad = ctx.createLinearGradient(0, CANVAS_H - 55, 0, CANVAS_H)
+    floorGrad.addColorStop(0, '#78909C')
+    floorGrad.addColorStop(0.3, '#90A4AE')
+    floorGrad.addColorStop(1, '#546E7A')
+    ctx.fillStyle = floorGrad
+    ctx.fillRect(0, CANVAS_H - 55, CANVAS_W, 55)
+
+    // 地面网格线
+    ctx.strokeStyle = 'rgba(255,255,255,0.08)'
+    ctx.lineWidth = 1
+    for (let gx = 0; gx < CANVAS_W; gx += 30) {
       ctx.beginPath()
-      ctx.arc(region.x, region.y, region.radius, 0, Math.PI * 2)
+      ctx.moveTo(gx, CANVAS_H - 55)
+      ctx.lineTo(gx, CANVAS_H)
+      ctx.stroke()
+    }
+    for (let gy = CANVAS_H - 55; gy < CANVAS_H; gy += 15) {
+      ctx.beginPath()
+      ctx.moveTo(0, gy)
+      ctx.lineTo(CANVAS_W, gy)
+      ctx.stroke()
+    }
+
+    // 地面警示线
+    ctx.fillStyle = '#FFC107'
+    ctx.fillRect(0, CANVAS_H - 10, CANVAS_W, 4)
+    ctx.fillStyle = '#333'
+    for (let sx = 0; sx < CANVAS_W; sx += 20) {
+      if (Math.floor(sx / 10) % 2 === 0) {
+        ctx.fillRect(sx, CANVAS_H - 10, 10, 4)
+      }
+    }
+
+    // 墙壁 - 工业风格
+    ctx.fillStyle = '#CFD8DC'
+    ctx.fillRect(0, CANVAS_H - 55, CANVAS_W, 2)
+    ctx.fillStyle = '#B0BEC5'
+    ctx.fillRect(0, CANVAS_H - 53, CANVAS_W, 1)
+
+    // 墙壁上的管道线路
+    ctx.strokeStyle = '#90A4AE'
+    ctx.lineWidth = 2
+    ctx.beginPath()
+    ctx.moveTo(0, CANVAS_H - 48)
+    ctx.lineTo(CANVAS_W, CANVAS_H - 48)
+    ctx.stroke()
+    ctx.strokeStyle = '#EF5350'
+    ctx.lineWidth = 1.5
+    ctx.beginPath()
+    ctx.moveTo(0, CANVAS_H - 42)
+    ctx.lineTo(CANVAS_W, CANVAS_H - 42)
+    ctx.stroke()
+  },
+
+  // ============ 场景前景 ============
+  renderForeground(ctx) {
+    // 安全围栏
+    ctx.strokeStyle = '#FF9800'
+    ctx.lineWidth = 2
+    for (let fx = 0; fx < CANVAS_W; fx += 25) {
+      ctx.beginPath()
+      ctx.moveTo(fx, CANVAS_H - 55)
+      ctx.lineTo(fx, CANVAS_H - 40)
+      ctx.stroke()
+    }
+    ctx.beginPath()
+    ctx.moveTo(0, CANVAS_H - 40)
+    ctx.lineTo(CANVAS_W, CANVAS_H - 40)
+    ctx.stroke()
+  },
+
+  // ============ 粒子系统 ============
+  updateParticles() {
+    // 更新水花粒子
+    this.waterParticles = (this.waterParticles || []).filter(p => {
+      p.life -= 0.02
+      p.y += p.vy
+      p.x += p.vx
+      return p.life > 0
+    })
+    // 维修粒子衰减
+    this.repairParticles = (this.repairParticles || []).filter(p => {
+      p.life -= 0.03
+      p.y += p.vy
+      return p.life > 0
+    })
+  },
+
+  spawnWaterParticles(x, y, count) {
+    for (let i = 0; i < count; i++) {
+      this.waterParticles.push({
+        x: x + (Math.random() - 0.5) * 20,
+        y: y,
+        vx: (Math.random() - 0.5) * 1.5,
+        vy: Math.random() * 2 + 1,
+        life: 1,
+        size: Math.random() * 3 + 1
+      })
+    }
+  },
+
+  spawnRepairParticles(x, y) {
+    for (let i = 0; i < 8; i++) {
+      this.repairParticles.push({
+        x, y,
+        vx: (Math.random() - 0.5) * 3,
+        vy: -Math.random() * 3 - 1,
+        life: 1,
+        size: Math.random() * 2 + 1
+      })
+    }
+  },
+
+  renderParticles(ctx) {
+    // 水花粒子
+    for (const p of (this.waterParticles || [])) {
+      ctx.fillStyle = `rgba(100, 181, 246, ${p.life * 0.6})`
+      ctx.beginPath()
+      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2)
+      ctx.fill()
+    }
+    // 维修火花粒子
+    for (const p of (this.repairParticles || [])) {
+      ctx.fillStyle = `rgba(255, 193, 7, ${p.life})`
+      ctx.beginPath()
+      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2)
       ctx.fill()
     }
   },
 
-  // 渲染维修车
+  // ============ 积水渲染 ============
+  renderWater(ctx) {
+    for (const region of this.waterRegions) {
+      if (region.radius < 3) continue
+      // 水面主体
+      const grad = ctx.createRadialGradient(region.x, region.y, 0, region.x, region.y, region.radius)
+      grad.addColorStop(0, 'rgba(30, 136, 229, 0.45)')
+      grad.addColorStop(0.4, 'rgba(33, 150, 243, 0.3)')
+      grad.addColorStop(0.7, 'rgba(66, 165, 245, 0.12)')
+      grad.addColorStop(1, 'rgba(100, 181, 246, 0)')
+      ctx.fillStyle = grad
+      ctx.beginPath()
+      ctx.arc(region.x, region.y, region.radius, 0, Math.PI * 2)
+      ctx.fill()
+
+      // 水面波纹
+      if (region.radius > 15) {
+        ctx.strokeStyle = 'rgba(255,255,255,0.15)'
+        ctx.lineWidth = 1
+        const rippleR = region.radius * 0.6 + Math.sin(this.frameCount * 0.05 + region.x) * 8
+        ctx.beginPath()
+        ctx.arc(region.x, region.y, rippleR, 0, Math.PI * 2)
+        ctx.stroke()
+      }
+
+      // 水面高光
+      if (region.radius > 10) {
+        ctx.fillStyle = 'rgba(255,255,255,0.1)'
+        ctx.beginPath()
+        ctx.ellipse(region.x - region.radius * 0.2, region.y - region.radius * 0.2,
+          region.radius * 0.3, region.radius * 0.15, -0.3, 0, Math.PI * 2)
+        ctx.fill()
+      }
+    }
+  },
+
+  // ============ 维修车渲染 (2D) ============
   renderCar(ctx) {
     const cx = this.carX, cy = this.carY
+    const t = this.frameCount
 
-    // 车身
-    ctx.fillStyle = '#FF9800'
-    ctx.fillRect(cx - CAR_SIZE/2, cy - CAR_SIZE/3, CAR_SIZE, CAR_SIZE * 0.6)
-
-    // 车顶
-    ctx.fillStyle = '#F57C00'
-    ctx.fillRect(cx - CAR_SIZE/3, cy - CAR_SIZE/2, CAR_SIZE * 0.65, CAR_SIZE * 0.25)
-
-    // 车轮
-    ctx.fillStyle = '#333'
+    ctx.save()
+    // 车身阴影
+    ctx.fillStyle = 'rgba(0,0,0,0.2)'
     ctx.beginPath()
-    ctx.arc(cx - CAR_SIZE/3, cy + CAR_SIZE/3, 12, 0, Math.PI * 2)
-    ctx.fill()
-    ctx.beginPath()
-    ctx.arc(cx + CAR_SIZE/3, cy + CAR_SIZE/3, 12, 0, Math.PI * 2)
+    ctx.ellipse(cx, cy + 22, 32, 6, 0, 0, Math.PI * 2)
     ctx.fill()
 
-    // 工具箱标记
-    ctx.fillStyle = '#2196F3'
-    ctx.fillRect(cx - 10, cy - CAR_SIZE/4, 20, 15)
+    // === 车身主体 ===
+    // 货车箱体
+    const bodyGrad = ctx.createLinearGradient(cx - 30, 0, cx + 30, 0)
+    bodyGrad.addColorStop(0, '#FB8C00')
+    bodyGrad.addColorStop(0.3, '#FF9800')
+    bodyGrad.addColorStop(0.7, '#FF9800')
+    bodyGrad.addColorStop(1, '#E65100')
+    ctx.fillStyle = bodyGrad
+    roundRect(ctx, cx - 30, cy - 24, 60, 30, 5)
+    ctx.fill()
+
+    // 车身高光
+    ctx.fillStyle = 'rgba(255,255,255,0.2)'
+    roundRect(ctx, cx - 25, cy - 20, 50, 8, 2)
+    ctx.fill()
+
+    // 驾驶室（前部突出）
+    const cabGrad = ctx.createLinearGradient(cx + 5, 0, cx + 30, 0)
+    cabGrad.addColorStop(0, '#FF9800')
+    cabGrad.addColorStop(1, '#E65100')
+    ctx.fillStyle = cabGrad
+    roundRect(ctx, cx + 5, cy - 35, 25, 16, 3)
+    ctx.fill()
+
+    // 挡风玻璃
+    ctx.fillStyle = '#B3E5FC'
+    roundRect(ctx, cx + 12, cy - 32, 14, 10, 2)
+    ctx.fill()
+    // 玻璃反光
+    ctx.fillStyle = 'rgba(255,255,255,0.4)'
+    ctx.beginPath()
+    ctx.moveTo(cx + 13, cy - 30)
+    ctx.lineTo(cx + 17, cy - 30)
+    ctx.lineTo(cx + 13, cy - 25)
+    ctx.closePath()
+    ctx.fill()
+
+    // 侧窗
+    ctx.fillStyle = '#B3E5FC'
+    roundRect(ctx, cx - 28, cy - 30, 12, 9, 2)
+    ctx.fill()
+    ctx.fillStyle = 'rgba(255,255,255,0.3)'
+    roundRect(ctx, cx - 26, cy - 28, 8, 5, 1)
+    ctx.fill()
+
+    // 顶部警示灯
+    const beaconOn = Math.sin(t * 0.15) > 0
+    ctx.fillStyle = beaconOn ? '#FFEB3B' : '#F9A825'
+    ctx.beginPath()
+    ctx.arc(cx + 10, cy - 37, 5, 0, Math.PI * 2)
+    ctx.fill()
+    if (beaconOn) {
+      ctx.fillStyle = 'rgba(255,235,59,0.3)'
+      ctx.beginPath()
+      ctx.arc(cx + 10, cy - 37, 10, 0, Math.PI * 2)
+      ctx.fill()
+    }
+
+    // === 车轮 ===
+    this.renderWheel(ctx, cx - 20, cy + 8)
+    this.renderWheel(ctx, cx + 18, cy + 8)
+
+    // 车轮挡泥板
+    ctx.fillStyle = '#E65100'
+    ctx.beginPath()
+    ctx.arc(cx - 20, cy + 4, 12, Math.PI, 0)
+    ctx.fill()
+    ctx.beginPath()
+    ctx.arc(cx + 18, cy + 4, 12, Math.PI, 0)
+    ctx.fill()
+
+    // 车身文字
     ctx.fillStyle = '#fff'
-    ctx.font = '12px sans-serif'
-    ctx.fillText('🔧', cx - 8, cy - CAR_SIZE/6)
+    ctx.font = 'bold 9px sans-serif'
+    ctx.textAlign = 'center'
+    ctx.fillText('维修', cx, cy - 12)
 
-    // 领取范围提示（闪光）
+    // 工具箱标识
+    ctx.fillStyle = '#1565C0'
+    roundRect(ctx, cx - 12, cy - 18, 24, 8, 3)
+    ctx.fill()
+    ctx.fillStyle = '#fff'
+    ctx.font = '7px sans-serif'
+    ctx.fillText('TOOLS', cx, cy - 12)
+
+    // 虚拟摇杆提示（车旁）
     if (this.data.showPickupBtn) {
-      ctx.strokeStyle = 'rgba(76, 175, 80, 0.6)'
+      const pulse = Math.sin(t * 0.08) * 0.15 + 0.7
+      ctx.strokeStyle = `rgba(76, 175, 80, ${pulse})`
       ctx.lineWidth = 2
-      ctx.setLineDash([5, 5])
+      ctx.setLineDash([4, 4])
+      ctx.lineDashOffset = t * 0.5
       ctx.beginPath()
       ctx.arc(cx, cy, INTERACT_RANGE, 0, Math.PI * 2)
       ctx.stroke()
       ctx.setLineDash([])
+
+      // 箭头指示
+      ctx.fillStyle = '#4CAF50'
+      ctx.font = '16px sans-serif'
+      ctx.textAlign = 'center'
+      const arrowY = cy - INTERACT_RANGE - 5 + Math.sin(t * 0.1) * 3
+      ctx.fillText('⬇', cx, arrowY)
     }
+
+    ctx.restore()
   },
 
-  // 渲染水管
+  // 车轮绘制
+  renderWheel(ctx, wx, wy) {
+    // 轮胎
+    ctx.fillStyle = '#37474F'
+    ctx.beginPath()
+    ctx.arc(wx, wy, 11, 0, Math.PI * 2)
+    ctx.fill()
+
+    // 轮胎纹理
+    ctx.strokeStyle = '#263238'
+    ctx.lineWidth = 1.5
+    ctx.beginPath()
+    ctx.arc(wx, wy, 8, 0, Math.PI * 2)
+    ctx.stroke()
+
+    // 轮毂
+    ctx.fillStyle = '#90A4AE'
+    ctx.beginPath()
+    ctx.arc(wx, wy, 5, 0, Math.PI * 2)
+    ctx.fill()
+
+    // 轮辐旋转
+    ctx.strokeStyle = '#B0BEC5'
+    ctx.lineWidth = 1
+    const rot = this.frameCount * 0.05
+    for (let i = 0; i < 6; i++) {
+      const ang = rot + (i * Math.PI / 3)
+      ctx.beginPath()
+      ctx.moveTo(wx, wy)
+      ctx.lineTo(wx + Math.cos(ang) * 4.5, wy + Math.sin(ang) * 4.5)
+      ctx.stroke()
+    }
+
+    // 轴心
+    ctx.fillStyle = '#607D8B'
+    ctx.beginPath()
+    ctx.arc(wx, wy, 2, 0, Math.PI * 2)
+    ctx.fill()
+  },
+
+  // ============ 水管渲染 (2D 工业风格) ============
   renderPipes(ctx) {
     for (const pipe of this.pipes) {
       const { x, y, isLeaking, isRepaired } = pipe
+      const t = this.frameCount
+      const pipeW = 40
+      const pipeH = 14
 
-      // 水管主体
-      ctx.fillStyle = isRepaired ? '#4CAF50' : (isLeaking ? '#F44336' : '#90A4AE')
-      ctx.fillRect(x - PIPE_SIZE/2, y - 6, PIPE_SIZE, 12)
+      ctx.save()
 
-      // 水管接头
-      ctx.fillStyle = isRepaired ? '#388E3C' : (isLeaking ? '#D32F2F' : '#607D8B')
-      ctx.fillRect(x - PIPE_SIZE/2 - 4, y - 10, 8, 20)
-      ctx.fillRect(x + PIPE_SIZE/2 - 4, y - 10, 8, 20)
+      // 水管阴影
+      ctx.fillStyle = 'rgba(0,0,0,0.15)'
+      ctx.beginPath()
+      ctx.ellipse(x, y + 10, pipeW / 2 + 2, 4, 0, 0, Math.PI * 2)
+      ctx.fill()
 
-      // 修复后的闪光
-      if (isRepaired && this.frameCount % 30 < 15) {
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.5)'
-        ctx.fillRect(x - PIPE_SIZE/2, y - 6, PIPE_SIZE, 12)
+      // === 水管主体（3D圆柱效果） ===
+      const pipeColor = isRepaired ? '#4CAF50' : (isLeaking ? '#EF5350' : '#78909C')
+      const pipeDark = isRepaired ? '#2E7D32' : (isLeaking ? '#C62828' : '#546E7A')
+      const pipeLight = isRepaired ? '#81C784' : (isLeaking ? '#EF9A9A' : '#B0BEC5')
+
+      const pipeGrad = ctx.createLinearGradient(0, y - pipeH / 2, 0, y + pipeH / 2)
+      pipeGrad.addColorStop(0, pipeLight)
+      pipeGrad.addColorStop(0.25, pipeColor)
+      pipeGrad.addColorStop(0.75, pipeColor)
+      pipeGrad.addColorStop(1, pipeDark)
+
+      ctx.fillStyle = pipeGrad
+      roundRect(ctx, x - pipeW / 2, y - pipeH / 2, pipeW, pipeH, pipeH / 2)
+      ctx.fill()
+
+      // 水管高光线
+      ctx.strokeStyle = 'rgba(255,255,255,0.25)'
+      ctx.lineWidth = 1
+      ctx.beginPath()
+      ctx.moveTo(x - pipeW / 2 + 5, y - 3)
+      ctx.lineTo(x + pipeW / 2 - 5, y - 3)
+      ctx.stroke()
+
+      // 管道纹理环
+      ctx.strokeStyle = 'rgba(0,0,0,0.1)'
+      ctx.lineWidth = 1
+      const ringSpacing = pipeW / 4
+      for (let rx = x - pipeW / 2 + ringSpacing; rx < x + pipeW / 2; rx += ringSpacing) {
+        ctx.beginPath()
+        ctx.moveTo(rx, y - pipeH / 2)
+        ctx.lineTo(rx, y + pipeH / 2)
+        ctx.stroke()
       }
 
-      // 喷水动画
-      if (isLeaking && !isRepaired) {
-        const sprayY = y - 10 - Math.sin(this.frameCount * 0.1 + pipe.id) * 5
-        ctx.fillStyle = 'rgba(33, 150, 243, 0.7)'
+      // === 左右接头 ===
+      this.renderPipeJoint(ctx, x - pipeW / 2 - 4, y, pipeDark)
+      this.renderPipeJoint(ctx, x + pipeW / 2 + 4, y, pipeDark)
+
+      // === 阀门手轮（部分管道有） ===
+      if (pipe.id % 2 === 0) {
+        const valveRot = t * 0.02 + pipe.id
+        ctx.strokeStyle = '#F44336'
+        ctx.lineWidth = 2
         ctx.beginPath()
-        ctx.arc(x, sprayY, 4 + Math.random() * 2, 0, Math.PI * 2)
+        ctx.arc(x + pipeW / 4, y - pipeH / 2 - 4, 7, 0, Math.PI * 2)
+        ctx.stroke()
+        // 十字辐条
+        ctx.lineWidth = 1.5
+        ctx.beginPath()
+        ctx.moveTo(x + pipeW / 4 - 5, y - pipeH / 2 - 4)
+        ctx.lineTo(x + pipeW / 4 + 5, y - pipeH / 2 - 4)
+        ctx.moveTo(x + pipeW / 4, y - pipeH / 2 - 9)
+        ctx.lineTo(x + pipeW / 4, y - pipeH / 2 + 1)
+        ctx.stroke()
+      }
+
+      // === 喷水效果 ===
+      if (isLeaking && !isRepaired) {
+        const sprayBaseY = y - 8
+        const sprayHeight = 10 + Math.sin(t * 0.12 + pipe.id) * 4
+
+        // 水柱
+        const sprayGrad = ctx.createLinearGradient(x, sprayBaseY, x, sprayBaseY - sprayHeight)
+        sprayGrad.addColorStop(0, 'rgba(33, 150, 243, 0.8)')
+        sprayGrad.addColorStop(0.5, 'rgba(100, 181, 246, 0.5)')
+        sprayGrad.addColorStop(1, 'rgba(144, 202, 249, 0)')
+        ctx.fillStyle = sprayGrad
+        ctx.beginPath()
+        ctx.moveTo(x - 4, sprayBaseY)
+        ctx.quadraticCurveTo(x - 2, sprayBaseY - sprayHeight / 2, x - 2, sprayBaseY - sprayHeight)
+        ctx.lineTo(x + 2, sprayBaseY - sprayHeight)
+        ctx.quadraticCurveTo(x + 2, sprayBaseY - sprayHeight / 2, x + 4, sprayBaseY)
+        ctx.closePath()
         ctx.fill()
 
-        // 水滴粒子
-        for (let i = 0; i < 3; i++) {
-          const px = x + (Math.random() - 0.5) * PIPE_SIZE
-          const py = sprayY - Math.random() * 15
-          ctx.fillStyle = 'rgba(100, 181, 246, 0.5)'
-          ctx.beginPath()
-          ctx.arc(px, py, 2, 0, Math.PI * 2)
-          ctx.fill()
+        // 生成水花粒子（每3帧一次）
+        if (t % 3 === 0) {
+          this.spawnWaterParticles(x, sprayBaseY - sprayHeight, 2)
         }
+
+        // 裂缝效果
+        ctx.strokeStyle = '#FFEB3B'
+        ctx.lineWidth = 1.5
+        ctx.beginPath()
+        const crackX = x - 5 + Math.sin(t * 0.1) * 3
+        ctx.moveTo(crackX, y - pipeH / 2)
+        ctx.lineTo(crackX + 3, y - pipeH / 2 - 5)
+        ctx.lineTo(crackX + 1, y - pipeH / 2 - 9)
+        ctx.stroke()
       }
 
-      // 高亮提示（维修范围）
+      // === 维修完成后的闪光 ===
+      if (isRepaired && t % 40 < 20) {
+        ctx.fillStyle = 'rgba(255,255,255,0.3)'
+        roundRect(ctx, x - pipeW / 2, y - pipeH / 2, pipeW, pipeH, pipeH / 2)
+        ctx.fill()
+      }
+
+      // === 维修范围指示 ===
       if (isLeaking && !isRepaired && this.data.showRepairBtn) {
         const dist = Math.hypot(this.workerX - x, this.workerY - y)
         if (dist < INTERACT_RANGE) {
-          ctx.strokeStyle = 'rgba(244, 67, 54, 0.6)'
+          const pulse = Math.sin(t * 0.1) * 0.15 + 0.7
+          ctx.strokeStyle = `rgba(244, 67, 54, ${pulse})`
           ctx.lineWidth = 2
+          ctx.setLineDash([4, 4])
+          ctx.lineDashOffset = t * 0.5
           ctx.beginPath()
-          ctx.arc(x, y, INTERACT_RANGE, 0, Math.PI * 2)
+          ctx.arc(x, y, INTERACT_RANGE + 5, 0, Math.PI * 2)
           ctx.stroke()
+          ctx.setLineDash([])
         }
       }
+
+      // 漏水状态标签
+      if (isLeaking && !isRepaired) {
+        ctx.fillStyle = 'rgba(244,67,54,0.15)'
+        ctx.beginPath()
+        ctx.arc(x, y, 28, 0, Math.PI * 2)
+        ctx.fill()
+        // 动画感叹号
+        const bounce = Math.abs(Math.sin(t * 0.08)) * 3
+        ctx.fillStyle = '#F44336'
+        ctx.font = 'bold 10px sans-serif'
+        ctx.textAlign = 'center'
+        ctx.fillText('⚠', x, y - 20 + bounce)
+      }
+
+      ctx.restore()
     }
   },
 
-  // 渲染工人
+  // 水管接头
+  renderPipeJoint(ctx, jx, jy, color) {
+    const jGrad = ctx.createLinearGradient(0, jy - 10, 0, jy + 10)
+    jGrad.addColorStop(0, '#B0BEC5')
+    jGrad.addColorStop(0.5, color)
+    jGrad.addColorStop(1, '#37474F')
+    ctx.fillStyle = jGrad
+    roundRect(ctx, jx - 5, jy - 10, 10, 20, 3)
+    ctx.fill()
+    // 螺栓
+    ctx.fillStyle = '#FFB300'
+    ctx.beginPath()
+    ctx.arc(jx, jy - 6, 2, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.beginPath()
+    ctx.arc(jx, jy + 6, 2, 0, Math.PI * 2)
+    ctx.fill()
+  },
+
+  // ============ 工人角色渲染 (完整2D角色) ============
   renderWorker(ctx) {
     const wx = this.workerX, wy = this.workerY
-    const isWalking = Math.abs(this.workerTargetX - this.workerX) > 1
+    const t = this.frameCount
+    const targetX = this.workerTargetX
+    const targetY = this.workerTargetY
+    const isWalking = Math.hypot(targetX - wx, targetY - wy) > 1.5
+    const facing = this.workerFacing
 
     ctx.save()
     ctx.translate(wx, wy)
 
-    // 身体
-    const bodyBob = isWalking ? Math.sin(this.frameCount * 0.2) * 2 : 0
-    ctx.fillStyle = '#2196F3'
-    ctx.fillRect(-12, -20 + bodyBob, 24, 28)
-
-    // 安全帽
-    ctx.fillStyle = '#FF9800'
+    // 角色阴影
+    ctx.fillStyle = 'rgba(0,0,0,0.2)'
     ctx.beginPath()
-    ctx.arc(0, -22 + bodyBob, 14, Math.PI, 0)
-    ctx.fill()
-    ctx.fillRect(-16, -23 + bodyBob, 32, 4)
-
-    // 头部
-    ctx.fillStyle = '#FFCC80'
-    ctx.beginPath()
-    ctx.arc(0, -18 + bodyBob, 9, 0, Math.PI * 2)
+    ctx.ellipse(0, 24, 10, 3, 0, 0, Math.PI * 2)
     ctx.fill()
 
-    // 手臂（举扳手）
-    ctx.strokeStyle = '#1565C0'
-    ctx.lineWidth = 4
+    // 朝向翻转
+    if (facing < 0) ctx.scale(-1, 1)
+
+    const bob = isWalking ? Math.sin(t * 0.3) * 2.5 : 0
+
+    // === 鞋子 ===
+    ctx.fillStyle = '#37474F'
+    ctx.fillRect(-8, 16 + bob, 7, 5)
+    ctx.fillRect(1, 16 + bob, 7, 5)
+    // 鞋底
+    ctx.fillStyle = '#212121'
+    ctx.fillRect(-8, 20 + bob, 7, 2)
+    ctx.fillRect(1, 20 + bob, 7, 2)
+
+    // === 左腿 ===
+    const leftLegAngle = isWalking ? Math.sin(t * 0.3) * 0.4 : 0
+    ctx.save()
+    ctx.translate(-4, 8 + bob)
+    ctx.rotate(leftLegAngle)
+    ctx.fillStyle = '#455A64'
+    ctx.fillRect(-3, 0, 6, 12)
+    // 裤子褶皱
+    ctx.strokeStyle = '#37474F'
+    ctx.lineWidth = 1
     ctx.beginPath()
-    ctx.moveTo(10, -12 + bodyBob)
-    ctx.lineTo(18, -25 + bodyBob)
+    ctx.moveTo(-3, 4)
+    ctx.lineTo(3, 5)
+    ctx.moveTo(-3, 8)
+    ctx.lineTo(3, 9)
     ctx.stroke()
+    ctx.restore()
 
+    // === 右腿 ===
+    const rightLegAngle = isWalking ? Math.sin(t * 0.3 + Math.PI) * 0.4 : 0
+    ctx.save()
+    ctx.translate(4, 8 + bob)
+    ctx.rotate(rightLegAngle)
+    ctx.fillStyle = '#455A64'
+    ctx.fillRect(-3, 0, 6, 12)
+    ctx.strokeStyle = '#37474F'
+    ctx.lineWidth = 1
+    ctx.beginPath()
+    ctx.moveTo(-3, 4)
+    ctx.lineTo(3, 5)
+    ctx.stroke()
+    ctx.restore()
+
+    // === 身体/工作服 ===
+    const bodyGrad = ctx.createLinearGradient(0, -10 + bob, 0, 12 + bob)
+    bodyGrad.addColorStop(0, '#42A5F5')
+    bodyGrad.addColorStop(0.5, '#1E88E5')
+    bodyGrad.addColorStop(1, '#1565C0')
+    ctx.fillStyle = bodyGrad
+    roundRect(ctx, -10, -10 + bob, 20, 22, 4)
+    ctx.fill()
+
+    // 反光背心条纹
+    ctx.fillStyle = '#FFEB3B'
+    ctx.fillRect(-8, -3 + bob, 16, 3)
+    ctx.fillRect(-8, 3 + bob, 16, 3)
+
+    // 工具腰带
+    ctx.fillStyle = '#5D4037'
+    ctx.fillRect(-11, 8 + bob, 22, 4)
+    // 腰带扣
+    ctx.fillStyle = '#FFB300'
+    ctx.fillRect(-3, 8 + bob, 6, 4)
+
+    // === 左臂 ===
+    const armSwing = isWalking ? Math.sin(t * 0.3 + Math.PI) * 0.5 : -0.3
+    ctx.save()
+    ctx.translate(-10, -8 + bob)
+    ctx.rotate(armSwing)
+    ctx.fillStyle = '#1E88E5'
+    roundRect(ctx, -3, 0, 6, 14, 3)
+    ctx.fill()
+    // 手套
+    ctx.fillStyle = '#FF9800'
+    roundRect(ctx, -4, 11, 8, 5, 2)
+    ctx.fill()
+    ctx.restore()
+
+    // === 右臂（持扳手） ===
+    ctx.save()
+    ctx.translate(10, -8 + bob)
+    ctx.rotate(-0.6 + (isWalking ? Math.sin(t * 0.3) * 0.15 : 0))
+    ctx.fillStyle = '#1E88E5'
+    roundRect(ctx, -3, 0, 6, 14, 3)
+    ctx.fill()
+    // 手套
+    ctx.fillStyle = '#FF9800'
+    roundRect(ctx, -4, 11, 8, 5, 2)
+    ctx.fill()
     // 扳手
-    ctx.strokeStyle = '#607D8B'
+    ctx.strokeStyle = '#78909C'
     ctx.lineWidth = 3
     ctx.beginPath()
-    ctx.moveTo(15, -20 + bodyBob)
-    ctx.lineTo(22, -28 + bodyBob)
+    ctx.moveTo(0, 15)
+    ctx.lineTo(0, 6)
     ctx.stroke()
+    ctx.fillStyle = '#90A4AE'
     ctx.beginPath()
-    ctx.arc(22, -30 + bodyBob, 5, 0, Math.PI * 2)
+    ctx.arc(0, 4, 5, 0, Math.PI * 2)
+    ctx.fill()
+    // 扳手高光
+    ctx.fillStyle = '#B0BEC5'
+    ctx.beginPath()
+    ctx.arc(0, 3, 2, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.restore()
+
+    // === 领口 ===
+    ctx.fillStyle = '#FF9800'
+    ctx.beginPath()
+    ctx.moveTo(-4, -8 + bob)
+    ctx.lineTo(0, -5 + bob)
+    ctx.lineTo(4, -8 + bob)
+    ctx.closePath()
+    ctx.fill()
+
+    // === 头部 ===
+    ctx.fillStyle = '#FFCC80'
+    ctx.beginPath()
+    ctx.arc(0, -15 + bob, 9, 0, Math.PI * 2)
+    ctx.fill()
+    // 面部阴影
+    ctx.fillStyle = 'rgba(0,0,0,0.06)'
+    ctx.beginPath()
+    ctx.arc(1, -14 + bob, 8, 0, Math.PI * 2)
+    ctx.fill()
+
+    // === 安全帽 ===
+    const helmetGrad = ctx.createLinearGradient(0, -28 + bob, 0, -18 + bob)
+    helmetGrad.addColorStop(0, '#FFB300')
+    helmetGrad.addColorStop(0.6, '#FF9800')
+    helmetGrad.addColorStop(1, '#E65100')
+    ctx.fillStyle = helmetGrad
+    ctx.beginPath()
+    ctx.arc(0, -19 + bob, 13, Math.PI, 0)
+    ctx.fill()
+    // 帽檐
+    ctx.fillStyle = '#F57C00'
+    ctx.fillRect(-16, -19 + bob, 32, 3)
+    // 帽子高光
+    ctx.fillStyle = 'rgba(255,255,255,0.3)'
+    ctx.beginPath()
+    ctx.arc(0, -24 + bob, 7, Math.PI, 0)
+    ctx.fill()
+    // 帽顶
+    ctx.fillStyle = '#FFB300'
+    ctx.beginPath()
+    ctx.arc(0, -27 + bob, 3, 0, Math.PI * 2)
+    ctx.fill()
+
+    // === 面部细节 ===
+    ctx.fillStyle = '#5D4037'
+    // 眼睛
+    ctx.beginPath()
+    ctx.arc(-3, -16 + bob, 1.5, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.beginPath()
+    ctx.arc(3, -16 + bob, 1.5, 0, Math.PI * 2)
+    ctx.fill()
+    // 嘴巴（微笑）
+    ctx.strokeStyle = '#5D4037'
+    ctx.lineWidth = 1
+    ctx.beginPath()
+    ctx.arc(0, -12 + bob, 3, 0.2, Math.PI - 0.2)
     ctx.stroke()
 
-    // 腿
-    if (isWalking) {
-      ctx.strokeStyle = '#1565C0'
-      ctx.lineWidth = 5
+    // 走动时冒汗
+    if (this.data.hp < 40) {
+      ctx.fillStyle = 'rgba(100, 181, 246, 0.5)'
+      const sweatX = -8 + Math.sin(t * 0.5) * 2
+      const sweatY = -22 + bob + Math.cos(t * 0.5) * 1
       ctx.beginPath()
-      ctx.moveTo(-6, 8 + bodyBob)
-      ctx.lineTo(-10, 20 + Math.sin(this.frameCount * 0.2) * 5)
-      ctx.stroke()
-      ctx.beginPath()
-      ctx.moveTo(6, 8 + bodyBob)
-      ctx.lineTo(10, 20 - Math.sin(this.frameCount * 0.2) * 5)
-      ctx.stroke()
-    } else {
-      ctx.strokeStyle = '#1565C0'
-      ctx.lineWidth = 5
-      ctx.beginPath()
-      ctx.moveTo(-6, 8 + bodyBob)
-      ctx.lineTo(-8, 20)
-      ctx.stroke()
-      ctx.beginPath()
-      ctx.moveTo(6, 8 + bodyBob)
-      ctx.lineTo(8, 20)
-      ctx.stroke()
+      ctx.arc(sweatX, sweatY, 2, 0, Math.PI * 2)
+      ctx.fill()
     }
 
     ctx.restore()
@@ -633,6 +1203,7 @@ Page({
 
     if (nearestPipe) {
       nearestPipe.isRepaired = true
+      this.spawnRepairParticles(nearestPipe.x, nearestPipe.y)
       this.setData({
         wrenchCount: this.data.wrenchCount - 1,
         showRepairBtn: false
