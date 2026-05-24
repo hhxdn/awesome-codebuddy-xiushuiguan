@@ -23,6 +23,13 @@
     </view>
   </view>
 
+  <!-- 活跃Buff指示器 -->
+  <view class="buffs-bar" wx:if="{{activeBuffsList.length > 0}}">
+    <view class="buff-tag" wx:for="{{activeBuffsList}}" wx:key="key" style="background: {{item.color}};">
+      <text>{{item.icon}} {{item.name}}</text>
+    </view>
+  </view>
+
   <!-- 游戏Canvas -->
   <canvas 
     type="2d" 

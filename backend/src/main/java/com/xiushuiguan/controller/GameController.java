@@ -26,6 +26,7 @@ public class GameController {
 
         int pipeCount = Math.min(40, 3 + n / 2);
         int initialLeaks = Math.min(pipeCount, Math.max(1, 1 + n / 2));
+        int highPressureCount = n >= 15 ? Math.min((int)(pipeCount * 0.4), n / 10) : 0;
         int wrenchPerPickup = Math.max(1, 8 - n / 25);
         int timeLimit = (int) Math.max(15, 150 - n * 0.7);
         double waterSpeed = 1 + n * 0.015;
@@ -64,6 +65,7 @@ public class GameController {
         levelConfig.put("level", n);
         levelConfig.put("pipeCount", pipeCount);
         levelConfig.put("initialLeaks", initialLeaks);
+        levelConfig.put("highPressureCount", highPressureCount);
         levelConfig.put("wrenchPerPickup", wrenchPerPickup);
         levelConfig.put("timeLimit", timeLimit);
         levelConfig.put("waterSpeed", waterSpeed);

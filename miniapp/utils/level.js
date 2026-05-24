@@ -11,6 +11,60 @@ const REWARD_CONFIG = {
 };
 
 /**
+ * 水管类型
+ */
+const PIPE_TYPE = {
+  NORMAL: 'normal',           // 普通水管
+  HIGH_PRESSURE: 'high_pressure' // 高压水管：维修慢、积水扩展快、爆管概率高
+};
+
+/**
+ * 道具类型配置
+ */
+const POWERUP_TYPES = {
+  SPEED_BOOST: {
+    key: 'speed_boost',
+    icon: '🏃',
+    name: '加速鞋',
+    color: '#4CAF50',
+    duration: 5000,  // 持续5秒
+    desc: '移动速度翻倍'
+  },
+  SHIELD: {
+    key: 'shield',
+    icon: '🛡️',
+    name: '护盾',
+    color: '#2196F3',
+    duration: 6000,
+    desc: '免疫积水伤害'
+  },
+  FREEZE: {
+    key: 'freeze',
+    icon: '❄️',
+    name: '冻结',
+    color: '#00BCD4',
+    duration: 5000,
+    desc: '积水停止扩散'
+  },
+  AOE_REPAIR: {
+    key: 'aoe_repair',
+    icon: '💥',
+    name: '范围维修',
+    color: '#FF9800',
+    duration: 0,  // 一次性效果
+    desc: '下次维修修复周围所有漏水'
+  },
+  COIN_BONUS: {
+    key: 'coin_bonus',
+    icon: '💰',
+    name: '金币加成',
+    color: '#FFC107',
+    duration: 0,
+    desc: '通关额外获得50%金币'
+  }
+};
+
+/**
  * 获取关卡配置
  * @param {number} n - 关卡号 (1-200)
  * @returns {object} 关卡配置
@@ -24,6 +78,8 @@ function getLevelConfig(n) {
   const pipeCount = Math.min(40, 3 + Math.floor(n / 2));
   // 漏水点数紧跟水管数，每2关增加1处
   const leakCount = Math.min(pipeCount, Math.max(1, 1 + Math.floor(n / 2)));
+  // 高压水管数量：第15关开始出现，每10关增加1个
+  const highPressureCount = n >= 15 ? Math.min(Math.floor(pipeCount * 0.4), Math.floor(n / 10)) : 0;
 
   const config = {
     level: n,
@@ -36,37 +92,32 @@ function getLevelConfig(n) {
     // 初始漏水数：基础1个 + 每2关增加1个，和水管同步增长
     leakCount,
 
+    // 高压水管数：第15关起出现，最多占40%
+    highPressureCount,
+
     // 单次领取扳手数：开始8个，每25关减少1个，最少1个
-    // 第1关:8 第50关:6 第100关:4 第150关:2 第200关:1
     wrenchPerPickup: Math.max(1, 8 - Math.floor(n / 25)),
 
     // 关卡时限（秒）：开始150秒，每关减少0.7秒，最低15秒
-    // 第1关:150 第50关:115 第100关:80 第150关:45 第200关:15
     timeLimit: Math.max(15, Math.floor(150 - n * 0.7)),
 
-    // 积水速度系数：基础1，每关增加0.015（原0.005，3倍增速）
-    // 第1关:1.015 第50关:1.75 第100关:2.5 第150关:3.25 第200关:4.0
+    // 积水速度系数：基础1，每关增加0.015
     waterSpeed: 1 + n * 0.015,
 
     // 爆管概率：最大0.5，起始0.01，每关增加0.003
-    // 第1关:1.3% 第50关:16% 第100关:31% 第150关:46% 第200关:50%
     burstProb: Math.min(0.5, 0.01 + n * 0.003),
 
-    // 维修所需时间（帧数，60fps）：每关增加1帧，越来越难修
-    // 第1关:21帧 第50关:70帧 第100关:120帧 第200关:220帧
+    // 维修所需时间（帧数，60fps）：每关增加1帧
     repairFrames: Math.max(15, 20 + n),
 
-    // 积水扩散间隔（帧）：大幅递减，越往后积水蔓延越快
-    // 第1关:18帧 第50关:11帧 第100关:8帧 第150关:6帧 第200关:5帧
+    // 积水扩散间隔（帧）：大幅递减
     waterSpreadInterval: Math.max(3, Math.floor(20 / (1 + n * 0.015))),
 
     // 血量掉落速度：随关卡递增
-    // 第1关:10 第50关:17 第100关:25 第150关:32 第200关:40
     hpLossRate: Math.min(40, Math.floor(10 + n * 0.15)),
   };
 
-  // 星级评定时间阈值：基于当前关卡时限的百分比，确保所有关卡都理论可达
-  // 3星: 时限的20%  2星: 时限的40%  1星: 时限的70%
+  // 星级评定时间阈值：基于当前关卡时限的百分比
   config.starThresholds = {
     three: Math.max(5, Math.floor(config.timeLimit * 0.2)),
     two: Math.max(8, Math.floor(config.timeLimit * 0.4)),
@@ -161,5 +212,7 @@ module.exports = {
   calcReward,
   getLevelDescription,
   isSolvable,
-  REWARD_CONFIG
+  REWARD_CONFIG,
+  PIPE_TYPE,
+  POWERUP_TYPES
 };

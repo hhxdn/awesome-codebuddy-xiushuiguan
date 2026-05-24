@@ -27,6 +27,14 @@ const CAR_SIZE = 60
 const PIPE_SIZE = 25
 const INTERACT_RANGE = 50
 
+// 道具/高压水管常量
+const PIPE_TYPE = levelUtil.PIPE_TYPE
+const POWERUP_TYPES = levelUtil.POWERUP_TYPES
+const POWERUP_SPAWN_MIN = 8000   // 最小生成间隔 8秒
+const POWERUP_SPAWN_MAX = 15000  // 最大生成间隔 15秒
+const POWERUP_LIFETIME = 12000   // 道具存在时间 12秒
+const POWERUP_SIZE = 22          // 道具图标大小
+
 Page({
   data: {
     level: 1,
@@ -40,6 +48,8 @@ Page({
     gameState: STATE.IDLE,
     canvasWidth: CANVAS_W,
     canvasHeight: CANVAS_H,
+    // 活跃Buff列表（UI显示）
+    activeBuffsList: [],
 
     // 弹窗状态
     showVictory: false,
@@ -82,6 +92,13 @@ Page({
   _autoRepairPipe: null,  // 点击水管后的自动维修目标
   _tapStartX: undefined,
   _tapStartY: undefined,
+  // 道具系统
+  _workerSpeed: WORKER_SPEED, // 动态移速
+  powerUps: [],            // 地图上的道具
+  activeBuffs: {},         // 当前生效的Buff { key: expireTime }
+  _pendingAoeRepair: false,// 待触发的范围维修
+  _coinBonus: false,       // 金币加成是否生效
+  powerUpSpawnTimer: null,
 
   onLoad(options) {
     const level = parseInt(options.level) || 1
@@ -141,6 +158,14 @@ Page({
     this._lastNearLeak = false
     this._lastHp = 100
     this._autoRepairPipe = null
+    // 重置道具系统
+    this.powerUps = []
+    this.activeBuffs = {}
+    this._pendingAoeRepair = false
+    this._coinBonus = false
+    this._workerSpeed = WORKER_SPEED
+    this.setData({ activeBuffsList: [] })
+    this.stopPowerUpTimer()
   },
 
   // 生成水管
@@ -176,11 +201,15 @@ Page({
       }
 
       const isLeaking = i < this.data.levelConfig.leakCount
+      // 高压水管分配：从末尾开始标记（保证初始漏水中的高压管数量合理）
+      const highCount = this.data.levelConfig.highPressureCount || 0
+      const isHighPressure = i >= count - highCount
       this.pipes.push({
         x, y,
         id: i,
         isLeaking,
         isRepaired: false,
+        type: isHighPressure ? PIPE_TYPE.HIGH_PRESSURE : PIPE_TYPE.NORMAL,
         leakTimer: 0,
         waterParticles: []
       })
@@ -242,6 +271,7 @@ Page({
     this.setData({ gameState: STATE.PLAYING })
     this.startTimers()
     this.startGameLoop()
+    this.startPowerUpTimer()
   },
 
   // 启动游戏循环
@@ -291,6 +321,7 @@ Page({
   stopAllTimers() {
     if (this.gameTimer) clearInterval(this.gameTimer)
     if (this.waterTimer) clearInterval(this.waterTimer)
+    this.stopPowerUpTimer()
     if (this.renderTimer) {
       if (this._cancelRaf) {
         this._cancelRaf(this.renderTimer)
@@ -298,6 +329,48 @@ Page({
         clearTimeout(this.renderTimer)
       }
     }
+  },
+
+  // 道具生成计时器
+  startPowerUpTimer() {
+    this.scheduleNextPowerUp()
+  },
+  scheduleNextPowerUp() {
+    if (this.powerUpSpawnTimer) clearTimeout(this.powerUpSpawnTimer)
+    const delay = POWERUP_SPAWN_MIN + Math.random() * (POWERUP_SPAWN_MAX - POWERUP_SPAWN_MIN)
+    this.powerUpSpawnTimer = setTimeout(() => {
+      if (this.data.gameState === STATE.PLAYING) {
+        this.spawnPowerUp()
+        this.scheduleNextPowerUp()
+      }
+    }, delay)
+  },
+  stopPowerUpTimer() {
+    if (this.powerUpSpawnTimer) {
+      clearTimeout(this.powerUpSpawnTimer)
+      this.powerUpSpawnTimer = null
+    }
+  },
+
+  // 在地图上生成随机道具
+  spawnPowerUp() {
+    // 限制地图上最多3个道具
+    if (this.powerUps.length >= 3) return
+    const types = Object.values(POWERUP_TYPES)
+    const type = types[Math.floor(Math.random() * types.length)]
+    const margin = 50
+    const x = margin + Math.random() * (CANVAS_W - margin * 2)
+    const y = margin + Math.random() * (CANVAS_H - margin * 2 - 60)
+    this.powerUps.push({
+      x, y,
+      type: type.key,
+      icon: type.icon,
+      color: type.color,
+      name: type.name,
+      spawnTime: Date.now(),
+      lifetime: POWERUP_LIFETIME,
+      radius: POWERUP_SIZE
+    })
   },
 
   // 触摸事件 - 全向拖拽移动
@@ -384,7 +457,7 @@ Page({
     const dy = this.workerTargetY - this.workerY
     const dist = Math.hypot(dx, dy)
     if (dist > 1) {
-      const speed = Math.min(WORKER_SPEED, dist)
+      const speed = Math.min(this._workerSpeed || WORKER_SPEED, dist)
       this.workerX += (dx / dist) * speed
       this.workerY += (dy / dist) * speed
     }
@@ -430,12 +503,21 @@ Page({
       })
     }
 
+    // 检查道具拾取
+    this.checkPowerUpPickup()
+    // 移除过期道具
+    this.checkPowerUpExpiry()
+    // 检查Buff过期
+    this.checkBuffExpiry()
+
     // 检查积水伤害
     this.checkWaterDamage()
   },
 
   // 检查积水伤害
   checkWaterDamage() {
+    // 护盾Buff生效中，免疫伤害
+    if (this.activeBuffs[POWERUP_TYPES.SHIELD.key]) return
     const config = this.data.levelConfig
     for (const region of this.waterRegions) {
       if (region.radius > 10) {
@@ -463,16 +545,21 @@ Page({
 
   // 积水扩散
   spreadWater() {
-    const speed = this.data.levelConfig ? this.data.levelConfig.waterSpeed : 1
-    let hasChange = false
+    // 冻结Buff生效中，积水不扩散
+    if (this.activeBuffs[POWERUP_TYPES.FREEZE.key]) return
+
+    const config = this.data.levelConfig
+    const speed = config ? config.waterSpeed : 1
 
     for (const pipe of this.pipes) {
       if (pipe.isLeaking && !pipe.isRepaired) {
+        // 高压水管积水扩散速度翻倍
+        const pipeSpeed = pipe.type === PIPE_TYPE.HIGH_PRESSURE ? speed * 2 : speed
         // 检查是否已有对应积水区域
         let found = false
         for (const region of this.waterRegions) {
           if (Math.hypot(region.x - pipe.x, region.y - pipe.y) < 20) {
-            region.radius += speed * 2
+            region.radius += pipeSpeed * 2
             region.radius = Math.min(region.radius, CANVAS_W * 0.6)
             found = true
             break
@@ -481,19 +568,21 @@ Page({
         if (!found) {
           this.waterRegions.push({ x: pipe.x, y: pipe.y + 20, radius: 5 })
         }
-        hasChange = true
       }
     }
 
-    // 随机爆管
-    if (this.data.levelConfig && Math.random() < this.data.levelConfig.burstProb / 60) {
-      const unrepairedLeaking = this.pipes.filter(p => p.isLeaking && !p.isRepaired)
-      if (unrepairedLeaking.length < this.pipes.length) {
-        const candidates = this.pipes.filter(p => !p.isLeaking)
-        if (candidates.length > 0) {
-          const pipe = candidates[Math.floor(Math.random() * candidates.length)]
-          pipe.isLeaking = true
-          audio.play('BURST')
+    // 随机爆管（高压水管爆管概率翻倍）
+    if (config) {
+      const baseProb = config.burstProb / 60
+      const candidates = this.pipes.filter(p => !p.isLeaking && !p.isRepaired)
+      if (candidates.length > 0) {
+        for (const pipe of candidates) {
+          const prob = pipe.type === PIPE_TYPE.HIGH_PRESSURE ? baseProb * 2 : baseProb
+          if (Math.random() < prob) {
+            pipe.isLeaking = true
+            audio.play('BURST')
+            break // 每次最多爆一根
+          }
         }
       }
     }
@@ -537,6 +626,9 @@ Page({
 
     // ===== 工人角色 =====
     this.renderWorker(ctx)
+
+    // ===== 道具 =====
+    this.renderPowerUps(ctx)
 
     // ===== 场景前景（围栏、警示带等） =====
     this.renderForeground(ctx)
@@ -633,7 +725,143 @@ Page({
     ctx.stroke()
   },
 
-  // ============ 粒子系统 ============
+  // ============ 道具系统 ============
+
+  // 渲染道具
+  renderPowerUps(ctx) {
+    const t = this.frameCount
+    for (const pu of this.powerUps) {
+      const elapsed = Date.now() - pu.spawnTime
+      // 最后3秒闪烁提醒即将消失
+      const alpha = elapsed > pu.lifetime - 3000 ? 0.4 + Math.sin(t * 0.3) * 0.3 : 0.85
+      const bob = Math.sin(t * 0.05 + pu.x) * 3
+
+      ctx.save()
+      // 光晕
+      ctx.fillStyle = pu.color.replace(')', `, ${alpha * 0.3})`).replace('rgb', 'rgba')
+      if (pu.color.startsWith('#')) {
+        ctx.fillStyle = `rgba(${parseInt(pu.color.slice(1,3),16)}, ${parseInt(pu.color.slice(3,5),16)}, ${parseInt(pu.color.slice(5,7),16)}, ${alpha * 0.3})`
+      }
+      ctx.beginPath()
+      ctx.arc(pu.x, pu.y + bob, pu.radius + 8, 0, Math.PI * 2)
+      ctx.fill()
+
+      // 底座圆圈
+      const bgColor = pu.color.startsWith('#') ? pu.color : '#fff'
+      ctx.fillStyle = bgColor
+      ctx.globalAlpha = alpha
+      ctx.beginPath()
+      ctx.arc(pu.x, pu.y + bob, pu.radius, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.strokeStyle = '#fff'
+      ctx.lineWidth = 2
+      ctx.stroke()
+
+      // 图标
+      ctx.fillStyle = '#fff'
+      ctx.font = `${pu.radius}px sans-serif`
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.fillText(pu.icon, pu.x, pu.y + bob)
+      ctx.globalAlpha = 1
+      ctx.restore()
+    }
+  },
+
+  // 检测道具拾取
+  checkPowerUpPickup() {
+    const wx = this.workerX, wy = this.workerY
+    for (let i = this.powerUps.length - 1; i >= 0; i--) {
+      const pu = this.powerUps[i]
+      const dist = Math.hypot(wx - pu.x, wy - pu.y)
+      if (dist < pu.radius + 15) {
+        this.applyPowerUp(pu)
+        this.powerUps.splice(i, 1)
+      }
+    }
+  },
+
+  // 移除过期道具
+  checkPowerUpExpiry() {
+    const now = Date.now()
+    this.powerUps = this.powerUps.filter(pu => now - pu.spawnTime < pu.lifetime)
+  },
+
+  // 检查Buff过期
+  checkBuffExpiry() {
+    const now = Date.now()
+    let changed = false
+    for (const [key, expireTime] of Object.entries(this.activeBuffs)) {
+      if (now >= expireTime) {
+        delete this.activeBuffs[key]
+        changed = true
+        // 特殊处理一次性Buff
+        if (key === POWERUP_TYPES.AOE_REPAIR.key) {
+          this._pendingAoeRepair = false
+        }
+        if (key === POWERUP_TYPES.SPEED_BOOST.key) {
+          this._workerSpeed = WORKER_SPEED
+        }
+      }
+    }
+    if (changed) {
+      this.updateBuffsList()
+    }
+  },
+
+  // 更新UI Buff列表
+  updateBuffsList() {
+    const now = Date.now()
+    const list = []
+    for (const [key, expireTime] of Object.entries(this.activeBuffs)) {
+      if (now < expireTime) {
+        const typeInfo = Object.values(POWERUP_TYPES).find(t => t.key === key)
+        if (typeInfo) {
+          list.push({ key, icon: typeInfo.icon, name: typeInfo.name, color: typeInfo.color })
+        }
+      }
+    }
+    // 添加一次性Buff（无倒计时）
+    if (this._pendingAoeRepair) {
+      const aoe = POWERUP_TYPES.AOE_REPAIR
+      list.push({ key: aoe.key, icon: aoe.icon, name: aoe.name, color: aoe.color })
+    }
+    if (this._coinBonus) {
+      const coin = POWERUP_TYPES.COIN_BONUS
+      list.push({ key: coin.key, icon: coin.icon, name: coin.name, color: coin.color })
+    }
+    this.setData({ activeBuffsList: list })
+  },
+
+  // 应用道具效果
+  applyPowerUp(pu) {
+    const now = Date.now()
+    switch (pu.type) {
+      case POWERUP_TYPES.SPEED_BOOST.key:
+        this.activeBuffs[pu.type] = now + POWERUP_TYPES.SPEED_BOOST.duration
+        this._workerSpeed = WORKER_SPEED * 2
+        wx.showToast({ title: '🏃 加速鞋！移动速度翻倍', icon: 'none', duration: 1500 })
+        break
+      case POWERUP_TYPES.SHIELD.key:
+        this.activeBuffs[pu.type] = now + POWERUP_TYPES.SHIELD.duration
+        wx.showToast({ title: '🛡️ 护盾！免疫积水伤害', icon: 'none', duration: 1500 })
+        break
+      case POWERUP_TYPES.FREEZE.key:
+        this.activeBuffs[pu.type] = now + POWERUP_TYPES.FREEZE.duration
+        wx.showToast({ title: '❄️ 冻结！积水停止扩散', icon: 'none', duration: 1500 })
+        break
+      case POWERUP_TYPES.AOE_REPAIR.key:
+        this._pendingAoeRepair = true
+        wx.showToast({ title: '💥 范围维修！下次维修将修复周围所有漏水', icon: 'none', duration: 2000 })
+        break
+      case POWERUP_TYPES.COIN_BONUS.key:
+        this._coinBonus = true
+        wx.showToast({ title: '💰 金币加成！通关额外获得50%金币', icon: 'none', duration: 2000 })
+        break
+    }
+    this.updateBuffsList()
+    wx.vibrateShort({ type: 'medium' })
+  },
   updateParticles() {
     // 更新水花粒子
     this.waterParticles = (this.waterParticles || []).filter(p => {
@@ -891,12 +1119,22 @@ Page({
   // ============ 水管渲染 (2D 工业风格) ============
   renderPipes(ctx) {
     for (const pipe of this.pipes) {
-      const { x, y, isLeaking, isRepaired } = pipe
+      const { x, y, isLeaking, isRepaired, type } = pipe
       const t = this.frameCount
-      const pipeW = 40
-      const pipeH = 14
+      const isHighPressure = type === PIPE_TYPE.HIGH_PRESSURE
+      const pipeW = isHighPressure ? 44 : 40
+      const pipeH = isHighPressure ? 18 : 14
 
       ctx.save()
+
+      // 高压水管：额外红色光晕
+      if (isHighPressure && !isRepaired) {
+        const glowAlpha = 0.08 + Math.sin(t * 0.05 + pipe.id) * 0.04
+        ctx.fillStyle = `rgba(255, 87, 34, ${glowAlpha})`
+        ctx.beginPath()
+        ctx.arc(x, y, pipeW / 2 + 10, 0, Math.PI * 2)
+        ctx.fill()
+      }
 
       // 水管阴影
       ctx.fillStyle = 'rgba(0,0,0,0.15)'
@@ -904,10 +1142,18 @@ Page({
       ctx.ellipse(x, y + 10, pipeW / 2 + 2, 4, 0, 0, Math.PI * 2)
       ctx.fill()
 
-      // === 水管主体（3D圆柱效果） ===
-      const pipeColor = isRepaired ? '#4CAF50' : (isLeaking ? '#EF5350' : '#78909C')
-      const pipeDark = isRepaired ? '#2E7D32' : (isLeaking ? '#C62828' : '#546E7A')
-      const pipeLight = isRepaired ? '#81C784' : (isLeaking ? '#EF9A9A' : '#B0BEC5')
+      // === 水管主体 ===
+      let pipeColor, pipeDark, pipeLight
+      if (isRepaired) {
+        pipeColor = '#4CAF50'; pipeDark = '#2E7D32'; pipeLight = '#81C784'
+      } else if (isLeaking) {
+        pipeColor = '#EF5350'; pipeDark = '#C62828'; pipeLight = '#EF9A9A'
+      } else if (isHighPressure) {
+        // 高压水管：橙红色调，带警示条纹
+        pipeColor = '#FF7043'; pipeDark = '#D84315'; pipeLight = '#FFAB91'
+      } else {
+        pipeColor = '#78909C'; pipeDark = '#546E7A'; pipeLight = '#B0BEC5'
+      }
 
       const pipeGrad = ctx.createLinearGradient(0, y - pipeH / 2, 0, y + pipeH / 2)
       pipeGrad.addColorStop(0, pipeLight)
@@ -918,6 +1164,24 @@ Page({
       ctx.fillStyle = pipeGrad
       roundRect(ctx, x - pipeW / 2, y - pipeH / 2, pipeW, pipeH, pipeH / 2)
       ctx.fill()
+
+      // 高压水管警示条纹
+      if (isHighPressure && !isRepaired) {
+        ctx.save()
+        ctx.beginPath()
+        roundRect(ctx, x - pipeW / 2, y - pipeH / 2, pipeW, pipeH, pipeH / 2)
+        ctx.clip()
+        ctx.fillStyle = '#FFEB3B'
+        for (let sx = x - pipeW / 2; sx < x + pipeW / 2; sx += 10) {
+          const angle = -0.4
+          ctx.save()
+          ctx.translate(sx, y)
+          ctx.rotate(angle)
+          ctx.fillRect(-3, -pipeH, 4, pipeH * 2)
+          ctx.restore()
+        }
+        ctx.restore()
+      }
 
       // 水管高光线
       ctx.strokeStyle = 'rgba(255,255,255,0.25)'
@@ -936,6 +1200,19 @@ Page({
         ctx.moveTo(rx, y - pipeH / 2)
         ctx.lineTo(rx, y + pipeH / 2)
         ctx.stroke()
+      }
+
+      // 高压水管：蒸汽效果
+      if (isHighPressure && !isRepaired) {
+        const steamAlpha = 0.2 + Math.sin(t * 0.08 + pipe.id * 2) * 0.1
+        ctx.fillStyle = `rgba(255, 255, 255, ${steamAlpha})`
+        for (let si = 0; si < 3; si++) {
+          const sx = x - 8 + si * 8 + Math.sin(t * 0.06 + si) * 3
+          const sy = y - pipeH / 2 - 4 - (t * 0.3 + si * 15) % 20
+          ctx.beginPath()
+          ctx.arc(sx, sy, 3, 0, Math.PI * 2)
+          ctx.fill()
+        }
       }
 
       // === 左右接头 ===
@@ -1296,14 +1573,39 @@ Page({
 
   // 执行维修动作
   doRepair(pipe) {
-    pipe.isRepaired = true
-    audio.play('REPAIR')
-    this.spawnRepairParticles(pipe.x, pipe.y)
+    const hasAoe = this._pendingAoeRepair
+    const repairedPipes = []
+
+    if (hasAoe) {
+      // 范围维修：修复周围所有漏水水管
+      const AOE_RANGE = 120
+      for (const p of this.pipes) {
+        if (p.isLeaking && !p.isRepaired) {
+          const dist = Math.hypot(pipe.x - p.x, pipe.y - p.y)
+          if (dist < AOE_RANGE) {
+            p.isRepaired = true
+            repairedPipes.push(p)
+            this.spawnRepairParticles(p.x, p.y)
+          }
+        }
+      }
+      this._pendingAoeRepair = false
+      audio.play('REPAIR')
+      wx.vibrateShort({ type: 'heavy' })
+      wx.showToast({ title: `💥 范围维修！修复了 ${repairedPipes.length} 处漏水`, icon: 'none', duration: 2000 })
+    } else {
+      pipe.isRepaired = true
+      repairedPipes.push(pipe)
+      audio.play('REPAIR')
+      this.spawnRepairParticles(pipe.x, pipe.y)
+      wx.vibrateShort({ type: 'light' })
+    }
+
     this.setData({
       wrenchCount: this.data.wrenchCount - 1,
       showRepairBtn: false
     })
-    wx.vibrateShort({ type: 'light' })
+    this.updateBuffsList()
 
     // 检查是否全部修完
     this.checkWinCondition()
@@ -1366,9 +1668,17 @@ Page({
       // 处理后端返回的奖励信息
       if (res.data && res.data.reward) {
         const reward = res.data.reward
+        let coinsEarned = reward.coinsEarned || 0
+        let message = reward.message || ''
+        // 金币加成：额外50%
+        if (this._coinBonus && isWin) {
+          const bonus = Math.floor(coinsEarned * 0.5)
+          coinsEarned += bonus
+          message += ` (💰金币加成 +${bonus})`
+        }
         this.setData({
-          rewardCoins: reward.coinsEarned || 0,
-          rewardMessage: reward.message || '',
+          rewardCoins: coinsEarned,
+          rewardMessage: message,
           totalCoins: reward.totalCoins || 0,
           isFirstClear: reward.isFirstClear || false
         })
@@ -1425,6 +1735,7 @@ Page({
           this.setData({ hp: this.data.maxHp, gameState: STATE.PLAYING })
           this.startTimers()
           this.startGameLoop()
+          this.startPowerUpTimer()
           wx.showToast({ title: '满血复活！', icon: 'success' })
           break
       }
@@ -1443,6 +1754,7 @@ Page({
       this.setData({ gameState: STATE.PLAYING })
       this.startTimers()
       this.startGameLoop()
+      this.startPowerUpTimer()
     }
   },
 

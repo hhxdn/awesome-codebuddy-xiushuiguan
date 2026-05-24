@@ -29,6 +29,7 @@
           <h4 class="section-title">关卡 {{ currentLevel }} 详情</h4>
           <el-descriptions :column="2" border size="medium">
             <el-descriptions-item label="水管总数">{{ levelDetail.pipeCount }}</el-descriptions-item>
+            <el-descriptions-item label="高压水管">{{ levelDetail.highPressureCount }}</el-descriptions-item>
             <el-descriptions-item label="初始漏水数">{{ levelDetail.leakCount }}</el-descriptions-item>
             <el-descriptions-item label="扳手数量">{{ levelDetail.wrenchCount }}</el-descriptions-item>
             <el-descriptions-item label="时限(秒)">{{ levelDetail.timeLimit }}</el-descriptions-item>
@@ -98,6 +99,7 @@ export default {
       currentLevel: 1,
       levelDetail: {
         pipeCount: 0,
+        highPressureCount: 0,
         leakCount: 0,
         wrenchCount: 0,
         timeLimit: 0,
@@ -140,6 +142,7 @@ export default {
         const pipeCount = Math.min(40, 3 + Math.floor(level / 2))
         this.levelDetail = {
           pipeCount: pipeCount,
+          highPressureCount: level >= 15 ? Math.min(Math.floor(pipeCount * 0.4), Math.floor(level / 10)) : 0,
           leakCount: Math.min(pipeCount, Math.max(1, 1 + Math.floor(level / 2))),
           wrenchCount: Math.max(1, 8 - Math.floor(level / 25)),
           timeLimit: Math.max(15, Math.floor(150 - level * 0.7)),
