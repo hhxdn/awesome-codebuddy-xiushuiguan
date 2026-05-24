@@ -1,5 +1,12 @@
 // components/reward-dialog/reward-dialog.js - 激励视频福利弹窗
 Component({
+  properties: {
+    show: {
+      type: Boolean,
+      value: false
+    }
+  },
+
   data: {
     rewards: [
       {

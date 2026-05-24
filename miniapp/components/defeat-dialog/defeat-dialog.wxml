@@ -1,5 +1,5 @@
 <!-- components/defeat-dialog/defeat-dialog.wxml - 失败弹窗 -->
-<view class="dialog-mask" bindtap="stopPropagation">
+<view class="dialog-mask" wx:if="{{show}}" bindtap="stopPropagation">
   <view class="defeat-card" catchtap="stopPropagation">
     <!-- 失败图标 -->
     <view class="defeat-icon">{{icon}}</view>

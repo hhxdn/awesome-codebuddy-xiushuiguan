@@ -1,6 +1,10 @@
 // components/victory-dialog/victory-dialog.js - 通关胜利弹窗
 Component({
   properties: {
+    show: {
+      type: Boolean,
+      value: false
+    },
     stars: {
       type: Number,
       value: 3
@@ -9,7 +13,7 @@ Component({
       type: Number,
       value: 1
     },
-    time: {
+    timeUsed: {
       type: Number,
       value: 0
     }

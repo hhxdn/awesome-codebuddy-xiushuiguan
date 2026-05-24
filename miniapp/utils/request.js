@@ -1,7 +1,7 @@
 // utils/request.js - 网络请求封装
 const app = getApp();
 
-const baseUrl = getApp().globalData.baseUrl || 'http://127.0.0.1:6001';
+const baseUrl = app.globalData.baseUrl || 'http://127.0.0.1:6001';
 
 /**
  * 发起HTTP请求

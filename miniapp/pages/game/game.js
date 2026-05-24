@@ -702,7 +702,7 @@ Page({
           this.setData({ timeLeft: this.data.timeLeft + 30 })
           wx.showToast({ title: '+30秒', icon: 'success' })
           break
-        case 'revive':
+        case 'hp':
           this.setData({ hp: this.data.maxHp, gameState: STATE.PLAYING })
           this.startTimers()
           this.startGameLoop()

@@ -1,5 +1,5 @@
 <!-- components/reward-dialog/reward-dialog.wxml - 激励视频福利弹窗 -->
-<view class="dialog-mask" bindtap="onClose">
+<view class="dialog-mask" wx:if="{{show}}" bindtap="onClose">
   <view class="reward-card" catchtap="stopPropagation">
     <!-- 关闭按钮 -->
     <view class="close-area" bindtap="onClose">

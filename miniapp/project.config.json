@@ -2,7 +2,7 @@
   "miniprogramRoot": "./",
   "projectname": "xiushuiguan",
   "description": "水管维修工-竖版休闲闯关小游戏",
-  "appid": "",
+  "appid": "wx7db55a637dcbd172",
   "setting": {
     "urlCheck": false,
     "es6": true,
@@ -30,7 +30,17 @@
       "disablePlugins": [],
       "outputPath": ""
     },
-    "condition": false
+    "condition": false,
+    "compileWorklet": false,
+    "packNpmManually": false,
+    "packNpmRelationList": [],
+    "minifyWXSS": true,
+    "minifyWXML": true,
+    "localPlugins": false,
+    "disableUseStrict": false,
+    "useCompilerPlugins": false,
+    "swc": false,
+    "disableSWC": true
   },
   "compileType": "miniprogram",
   "libVersion": "3.3.4",
@@ -41,5 +51,6 @@
   "editorSetting": {
     "tabIndent": "insertSpaces",
     "tabSize": 2
-  }
+  },
+  "simulatorPluginLibVersion": {}
 }

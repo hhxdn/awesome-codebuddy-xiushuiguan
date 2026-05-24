@@ -1,5 +1,5 @@
 <!-- components/victory-dialog/victory-dialog.wxml - 通关胜利弹窗 -->
-<view class="dialog-mask" bindtap="stopPropagation">
+<view class="dialog-mask" wx:if="{{show}}" bindtap="stopPropagation">
   <view class="victory-card" catchtap="stopPropagation">
     <!-- 星星动画 -->
     <view class="stars-area {{showStars ? 'show' : ''}}">
@@ -20,7 +20,7 @@
     <!-- 关卡信息 -->
     <view class="victory-info">
       <text class="info-item">第{{level}}关</text>
-      <text class="info-item">用时 {{time}} 秒</text>
+      <text class="info-item">用时 {{timeUsed}} 秒</text>
     </view>
 
     <!-- 按钮 -->
