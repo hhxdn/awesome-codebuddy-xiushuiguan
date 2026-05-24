@@ -72,6 +72,9 @@ Page({
   _lastHp: 100,
   _canvasReady: false,
   _pendingStart: false,
+  _autoRepairPipe: null,  // 点击水管后的自动维修目标
+  _tapStartX: undefined,
+  _tapStartY: undefined,
 
   onLoad(options) {
     const level = parseInt(options.level) || 1
@@ -128,6 +131,7 @@ Page({
     this._lastNearCar = false
     this._lastNearLeak = false
     this._lastHp = 100
+    this._autoRepairPipe = null
   },
 
   // 生成水管
@@ -277,6 +281,9 @@ Page({
   onTouchStart(e) {
     this.touchStartX = e.touches[0].x
     this.touchStartY = e.touches[0].y
+    // 保存初始触摸位置用于区分点击和拖拽
+    this._tapStartX = e.touches[0].x
+    this._tapStartY = e.touches[0].y
   },
 
   onTouchMove(e) {
@@ -295,8 +302,53 @@ Page({
     this.touchStartY = e.touches[0].y
   },
 
-  onTouchEnd() {
+  onTouchEnd(e) {
+    const endX = e.changedTouches[0] ? e.changedTouches[0].x : 0
+    const endY = e.changedTouches[0] ? e.changedTouches[0].y : 0
+
+    // 判断是否为点击（移动距离 < 10px 视为点击，非拖拽）
+    if (this._tapStartX !== undefined && this.data.gameState === STATE.PLAYING) {
+      const tapDx = Math.abs(endX - this._tapStartX)
+      const tapDy = Math.abs(endY - this._tapStartY)
+      if (tapDx < 10 && tapDy < 10) {
+        this.handleCanvasTap(endX, endY)
+      }
+    }
+
     this.touchStartX = 0
+    this._tapStartX = undefined
+    this._tapStartY = undefined
+  },
+
+  // 处理 Canvas 点击：检测是否点击了漏水水管
+  handleCanvasTap(tapX, tapY) {
+    // 找到点击位置范围内的漏水水管
+    const tapRange = 45
+    let nearestPipe = null
+    let nearestDist = Infinity
+
+    for (const pipe of this.pipes) {
+      if (pipe.isLeaking && !pipe.isRepaired) {
+        const dist = Math.hypot(tapX - pipe.x, tapY - pipe.y)
+        if (dist < tapRange && dist < nearestDist) {
+          nearestDist = dist
+          nearestPipe = pipe
+        }
+      }
+    }
+
+    if (!nearestPipe) return
+
+    if (this.data.wrenchCount <= 0) {
+      wx.showToast({ title: '扳手不足！请回维修车领取', icon: 'none', duration: 1500 })
+      return
+    }
+
+    // 自动移动到水管位置并维修
+    this.workerTargetX = nearestPipe.x
+    this.workerTargetY = nearestPipe.y
+    this._autoRepairPipe = nearestPipe
+    wx.showToast({ title: '正在前往维修...', icon: 'none', duration: 600 })
   },
 
   // 更新游戏逻辑
@@ -311,6 +363,16 @@ Page({
       const speed = Math.min(WORKER_SPEED, dist)
       this.workerX += (dx / dist) * speed
       this.workerY += (dy / dist) * speed
+    }
+
+    // 自动维修：点击水管后自动走到目标并修理
+    if (this._autoRepairPipe) {
+      const pipe = this._autoRepairPipe
+      const distToPipe = Math.hypot(this.workerX - pipe.x, this.workerY - pipe.y)
+      if (distToPipe < INTERACT_RANGE && pipe.isLeaking && !pipe.isRepaired && this.data.wrenchCount > 0) {
+        this.doRepair(pipe)
+        this._autoRepairPipe = null
+      }
     }
 
     // 更新水花粒子
@@ -1180,7 +1242,7 @@ Page({
     wx.showToast({ title: `+${pickupCount} 🔧`, icon: 'none', duration: 800 })
   },
 
-  // 维修水管
+  // 维修水管（按钮触发 - 找最近漏水水管）
   onRepairPipe() {
     if (this.data.gameState !== STATE.PLAYING) return
     if (this.data.wrenchCount <= 0) {
@@ -1202,17 +1264,22 @@ Page({
     }
 
     if (nearestPipe) {
-      nearestPipe.isRepaired = true
-      this.spawnRepairParticles(nearestPipe.x, nearestPipe.y)
-      this.setData({
-        wrenchCount: this.data.wrenchCount - 1,
-        showRepairBtn: false
-      })
-      wx.vibrateShort({ type: 'light' })
-
-      // 检查是否全部修完
-      this.checkWinCondition()
+      this.doRepair(nearestPipe)
     }
+  },
+
+  // 执行维修动作
+  doRepair(pipe) {
+    pipe.isRepaired = true
+    this.spawnRepairParticles(pipe.x, pipe.y)
+    this.setData({
+      wrenchCount: this.data.wrenchCount - 1,
+      showRepairBtn: false
+    })
+    wx.vibrateShort({ type: 'light' })
+
+    // 检查是否全部修完
+    this.checkWinCondition()
   },
 
   // 检查胜利条件
