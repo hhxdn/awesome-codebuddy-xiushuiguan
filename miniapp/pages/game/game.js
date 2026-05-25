@@ -101,6 +101,7 @@ Page({
   _pendingAoeRepair: false,// 待触发的范围维修
   _coinBonus: false,       // 金币加成是否生效
   _magnetActive: false,    // 磁铁是否生效
+  _waterSoundCd: 0,        // 漏水伤害音效冷却
   powerUpSpawnTimer: null,
   // 连击系统
   _combo: 0,              // 当前连击数
@@ -330,6 +331,7 @@ Page({
     const loop = () => {
       if (this.data.gameState !== STATE.PLAYING) return
       this.frameCount++
+      if (this._waterSoundCd > 0) this._waterSoundCd--
       this.update()
       this.render()
       this.renderTimer = raf(loop)
@@ -603,6 +605,11 @@ Page({
       if (region.radius > 10) {
         const dist = Math.hypot(this.workerX - region.x, this.workerY - region.y)
         if (dist < region.radius) {
+          // 漏水伤害音效（每秒最多播放一次）
+          if (this._waterSoundCd <= 0) {
+            audio.play('WATER')
+            this._waterSoundCd = 60
+          }
           let hp = this.data.hp - (10 / 60) // 每秒10点，60fps
           if (hp <= 0) {
             hp = 0
@@ -944,6 +951,7 @@ Page({
       const pu = this.powerUps[i]
       const dist = Math.hypot(wx - pu.x, wy - pu.y)
       if (dist < pu.radius + 15) {
+        audio.play('POWERUP')
         this.applyPowerUp(pu)
         this.powerUps.splice(i, 1)
       }
@@ -2038,6 +2046,7 @@ Page({
     }
     // 连击特效粒子
     if (this._combo >= 3) {
+      audio.playCombo(this._combo)
       for (let i = 0; i < this._combo * 2; i++) {
         this._comboParticles.push({
           x: pipe.x + (Math.random() - 0.5) * 40,
@@ -2076,6 +2085,8 @@ Page({
       this.stopAllTimers()
       const timeUsed = this.data.levelConfig.timeLimit - this.data.timeLeft
       const stars = levelUtil.calcStars(timeUsed, this.data.levelConfig)
+
+      audio.play('CLEAR')
 
       this.setData({
         gameState: STATE.WIN,
