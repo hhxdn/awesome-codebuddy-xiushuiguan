@@ -48,13 +48,26 @@ function writeStr(view, offset, str) {
 /**
  * 将 ArrayBuffer 转为 base64 data URI
  */
+// 微信小程序不支持btoa，手动实现base64编码
+function toBase64(bytes) {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+  let result = '';
+  const len = bytes.length;
+  for (let i = 0; i < len; i += 3) {
+    const a = bytes[i];
+    const b = i + 1 < len ? bytes[i + 1] : 0;
+    const c = i + 2 < len ? bytes[i + 2] : 0;
+    result += chars[a >> 2];
+    result += chars[((a & 3) << 4) | (b >> 4)];
+    result += i + 1 < len ? chars[((b & 15) << 2) | (c >> 6)] : '=';
+    result += i + 2 < len ? chars[c & 63] : '=';
+  }
+  return result;
+}
+
 function wavToDataUri(buffer) {
   const bytes = new Uint8Array(buffer);
-  let binary = '';
-  for (let i = 0; i < bytes.byteLength; i++) {
-    binary += String.fromCharCode(bytes[i]);
-  }
-  return 'data:audio/wav;base64,' + btoa(binary);
+  return 'data:audio/wav;base64,' + toBase64(bytes);
 }
 
 // ========== 各音效合成函数 ==========
