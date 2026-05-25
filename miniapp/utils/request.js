@@ -1,17 +1,30 @@
 // utils/request.js - 网络请求封装
-const app = getApp();
 
-const baseUrl = app.globalData.baseUrl || 'http://127.0.0.1:6001';
+const BASE_URL = 'http://127.0.0.1:6001';
+
+/**
+ * 获取baseUrl（运行时动态获取，避免模块加载时getApp()未就绪）
+ */
+function getBaseUrl() {
+  try {
+    const app = getApp();
+    return (app && app.globalData && app.globalData.baseUrl) || BASE_URL;
+  } catch (e) {
+    return BASE_URL;
+  }
+}
 
 /**
  * 发起HTTP请求
  */
 function request(options) {
-  const token = app.getToken();
+  let app;
+  try { app = getApp(); } catch (e) {}
+  const token = app ? app.getToken() : '';
 
   return new Promise((resolve, reject) => {
     wx.request({
-      url: `${baseUrl}${options.url}`,
+      url: `${getBaseUrl()}${options.url}`,
       data: options.data || {},
       method: options.method || 'GET',
       header: {
@@ -77,7 +90,8 @@ function del(url, data = {}) {
 }
 
 module.exports = {
-  baseUrl,
+  getBaseUrl,
+  BASE_URL,
   request,
   get,
   post,
