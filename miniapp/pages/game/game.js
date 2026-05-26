@@ -188,6 +188,8 @@ Page({
     this._lastRepairTime = 0
     this._dustParticles = []
     this._comboParticles = []
+    this._burstParticles = []
+    this._burstCooldown = 0
     if (this._comboTimer) clearTimeout(this._comboTimer)
     this.setData({ activeBuffsList: [], comboCount: 0 })
     this.stopPowerUpTimer()
@@ -556,6 +558,9 @@ Page({
       if (distToPipe < INTERACT_RANGE && pipe.isLeaking && !pipe.isRepaired && this.data.wrenchCount > 0) {
         this.doRepair(pipe)
         this._autoRepairPipe = null
+      } else if (distToPipe < INTERACT_RANGE) {
+        // 到达后若已修好或没扳手，取消自动维修
+        this._autoRepairPipe = null
       }
     }
 
@@ -665,15 +670,41 @@ Page({
 
     // 随机爆管（高压水管爆管概率翻倍）
     if (config) {
-      const baseProb = config.burstProb / 60
-      const candidates = this.pipes.filter(p => !p.isLeaking && !p.isRepaired)
-      if (candidates.length > 0) {
-        for (const pipe of candidates) {
-          const prob = pipe.type === PIPE_TYPE.HIGH_PRESSURE ? baseProb * 2 : baseProb
-          if (Math.random() < prob) {
-            pipe.isLeaking = true
-            audio.play('BURST')
-            break // 每次最多爆一根
+      const now = Date.now()
+      // 冷却时间：上次爆管后 8 秒内不再爆新管
+      if (this._burstCooldown && now < this._burstCooldown) {
+        // skip burst during cooldown
+      } else {
+        // 防卡关：剩余未修漏水数 <= 2 时不爆新管
+        const activeLeaks = this.pipes.filter(p => p.isLeaking && !p.isRepaired).length
+        if (activeLeaks > 2) {
+          const baseProb = config.burstProb / 60
+          const candidates = this.pipes.filter(p => !p.isLeaking && !p.isRepaired)
+          if (candidates.length > 0) {
+            for (const pipe of candidates) {
+              const prob = pipe.type === PIPE_TYPE.HIGH_PRESSURE ? baseProb * 2 : baseProb
+              if (Math.random() < prob) {
+                pipe.isLeaking = true
+                this._burstCooldown = now + 8000
+                audio.play('BURST')
+                // 爆管视觉特效：橙色/红色粒子飞溅
+                if (!this._burstParticles) this._burstParticles = []
+                const burstColor = pipe.type === PIPE_TYPE.HIGH_PRESSURE ? '#FF5722' : '#FF9800'
+                for (let i = 0; i < 10; i++) {
+                  this._burstParticles.push({
+                    x: pipe.x + (Math.random() - 0.5) * 30,
+                    y: pipe.y + (Math.random() - 0.5) * 30,
+                    vx: (Math.random() - 0.5) * 5,
+                    vy: (Math.random() - 0.5) * 5 - 3,
+                    life: 1,
+                    size: Math.random() * 3 + 2,
+                    color: burstColor
+                  })
+                }
+                wx.showToast({ title: '💥 管道爆裂！快去维修', icon: 'none', duration: 2000 })
+                break // 每次最多爆一根
+              }
+            }
           }
         }
       }
@@ -1086,6 +1117,14 @@ Page({
       p.size -= 0.05
       return p.life > 0
     })
+    // 爆管粒子衰减
+    this._burstParticles = (this._burstParticles || []).filter(p => {
+      p.life -= 0.04
+      p.y += p.vy
+      p.x += p.vx
+      p.size -= 0.03
+      return p.life > 0
+    })
   },
 
   spawnWaterParticles(x, y, count) {
@@ -1145,6 +1184,16 @@ Page({
     // 维修火花粒子
     for (const p of (this.repairParticles || [])) {
       ctx.fillStyle = `rgba(255, 193, 7, ${p.life})`
+      ctx.beginPath()
+      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2)
+      ctx.fill()
+    }
+    // 爆管粒子（橙色/红色飞溅）
+    for (const p of (this._burstParticles || [])) {
+      const r = parseInt(p.color.slice(1, 3), 16)
+      const g = parseInt(p.color.slice(3, 5), 16)
+      const b = parseInt(p.color.slice(5, 7), 16)
+      ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${p.life})`
       ctx.beginPath()
       ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2)
       ctx.fill()
