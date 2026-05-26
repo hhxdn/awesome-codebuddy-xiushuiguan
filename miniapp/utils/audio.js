@@ -1,4 +1,4 @@
-// utils/audio.js - 音效管理（WebAudio API 直接播放，无需文件 I/O）
+// utils/audio.js - 音效管理（WAV base64 data URI + InnerAudioContext，最可靠方案）
 
 const SR = 22050; // 采样率
 
@@ -169,8 +169,79 @@ function genComboSamples(combo) {
   return samples;
 }
 
+// ========== WAV 编码 ==========
+
+/**
+ * Float32Array 转 16-bit PCM WAV ArrayBuffer
+ */
+function float32ToWav(samples) {
+  const numChannels = 1;
+  const bitsPerSample = 16;
+  const byteRate = SR * numChannels * bitsPerSample / 8;
+  const blockAlign = numChannels * bitsPerSample / 8;
+  const dataSize = samples.length * blockAlign;
+  const bufferSize = 44 + dataSize;
+
+  const buffer = new ArrayBuffer(bufferSize);
+  const view = new DataView(buffer);
+
+  // RIFF header
+  writeStr(view, 0, 'RIFF');
+  view.setUint32(4, bufferSize - 8, true);
+  writeStr(view, 8, 'WAVE');
+
+  // fmt  subchunk
+  writeStr(view, 12, 'fmt ');
+  view.setUint32(16, 16, true);        // Subchunk1Size (PCM)
+  view.setUint16(20, 1, true);         // AudioFormat (PCM)
+  view.setUint16(22, numChannels, true);
+  view.setUint32(24, SR, true);
+  view.setUint32(28, byteRate, true);
+  view.setUint16(32, blockAlign, true);
+  view.setUint16(34, bitsPerSample, true);
+
+  // data subchunk
+  writeStr(view, 36, 'data');
+  view.setUint32(40, dataSize, true);
+
+  // 写入采样数据（Float32 → Int16）
+  for (let i = 0; i < samples.length; i++) {
+    let s = Math.max(-1, Math.min(1, samples[i]));
+    s = s < 0 ? s * 0x8000 : s * 0x7FFF;
+    view.setInt16(44 + i * 2, s, true);
+  }
+
+  return buffer;
+}
+
+function writeStr(view, offset, str) {
+  for (let i = 0; i < str.length; i++) {
+    view.setUint8(offset + i, str.charCodeAt(i));
+  }
+}
+
+// ========== Base64 编码 ==========
+const B64 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+
+function arrayBufferToBase64(buffer) {
+  const bytes = new Uint8Array(buffer);
+  const len = bytes.byteLength;
+  let result = '';
+  for (let i = 0; i < len; i += 3) {
+    const a = bytes[i];
+    const b = i + 1 < len ? bytes[i + 1] : 0;
+    const c = i + 2 < len ? bytes[i + 2] : 0;
+    result += B64[a >> 2];
+    result += B64[((a & 3) << 4) | (b >> 4)];
+    result += i + 1 < len ? B64[((b & 15) << 2) | (c >> 6)] : '=';
+    result += i + 2 < len ? B64[c & 63] : '=';
+  }
+  return result;
+}
+
 // ========== 音效资源管理 ==========
-const RAW_SAMPLES = {}; // 存储原始 Float32Array 采样
+const RAW_SAMPLES = {};
+const DATA_URIS = {}; // 缓存 base64 data URI
 let _initialized = false;
 
 function initSounds() {
@@ -190,45 +261,25 @@ function initSounds() {
   _initialized = true;
 }
 
-// ========== WebAudio 播放引擎 ==========
-let audioCtx = null;
-
-function getAudioContext() {
-  if (!audioCtx) {
-    try {
-      // 微信小程序 WebAudio API（基础库 >= 2.19.0）
-      audioCtx = wx.createWebAudioContext();
-    } catch (e) {
-      console.error('创建WebAudioContext失败:', e);
-      return null;
-    }
-  }
-  return audioCtx;
-}
-
-// 预创建的 AudioBuffer 缓存
-const bufferCache = {};
-
-function getBuffer(name) {
-  if (bufferCache[name]) return bufferCache[name];
-  const ctx = getAudioContext();
-  if (!ctx) return null;
+/** 获取音效的 base64 data URI（带缓存） */
+function getDataUri(name) {
+  if (DATA_URIS[name]) return DATA_URIS[name];
   const samples = RAW_SAMPLES[name];
   if (!samples) return null;
-  const buffer = ctx.createBuffer(1, samples.length, SR);
-  buffer.getChannelData(0).set(samples);
-  bufferCache[name] = buffer;
-  return buffer;
+  const wavBuf = float32ToWav(samples);
+  const b64 = arrayBufferToBase64(wavBuf);
+  const uri = 'data:audio/wav;base64,' + b64;
+  DATA_URIS[name] = uri;
+  return uri;
 }
 
-/** 全局音量 */
+// ========== 播放引擎：InnerAudioContext + base64 data URI ==========
 let globalVolume = 0.6;
 
 /**
  * 播放音效
  * @param {string} name - 音效名称
  * @param {object} options - { loop, volume }
- * @returns {object|null} source节点（可用于停止）
  */
 function play(name, options = {}) {
   if (!_initialized) initSounds();
@@ -238,40 +289,30 @@ function play(name, options = {}) {
   const soundEnabled = app ? app.globalData.soundEnabled : true;
   if (!soundEnabled) return null;
 
-  const ctx = getAudioContext();
-  if (!ctx) return null;
-
-  const buffer = getBuffer(name);
-  if (!buffer) return null;
+  const dataUri = getDataUri(name);
+  if (!dataUri) {
+    console.warn('[audio] 无音效数据:', name);
+    return null;
+  }
 
   try {
-    // 确保 AudioContext 处于运行状态
-    if (ctx.state === 'suspended') {
-      ctx.resume();
-    }
+    const innerCtx = wx.createInnerAudioContext();
+    innerCtx.src = dataUri;
+    innerCtx.volume = options.volume !== undefined ? options.volume : globalVolume;
+    innerCtx.loop = options.loop || false;
 
-    const source = ctx.createBufferSource();
-    source.buffer = buffer;
-    source.loop = options.loop || false;
+    innerCtx.onEnded(() => {
+      innerCtx.destroy();
+    });
+    innerCtx.onError((err) => {
+      console.error('[audio] 播放失败:', name, err);
+      innerCtx.destroy();
+    });
 
-    const gainNode = ctx.createGain();
-    gainNode.gain.value = options.volume !== undefined ? options.volume : globalVolume;
-
-    source.connect(gainNode);
-    gainNode.connect(ctx.destination);
-
-    source.start(0);
-
-    // 非循环播放完后自动清理
-    if (!options.loop) {
-      source.onended = () => {
-        try { gainNode.disconnect(); } catch (e) {}
-      };
-    }
-
-    return { source, gain: gainNode };
+    innerCtx.play();
+    return innerCtx;
   } catch (e) {
-    console.error('音效播放失败', name, e);
+    console.error('[audio] 创建播放器失败:', name, e);
     return null;
   }
 }
@@ -282,38 +323,23 @@ function playCombo(combo) {
   return play('COMBO_' + idx, { volume: 0.5 });
 }
 
-/**
- * 设置全局音量
- */
 function setVolume(volume) {
   globalVolume = Math.max(0, Math.min(1, volume));
 }
 
-/**
- * 停止所有音效（重置 AudioContext）
- */
+/** 停止所有音效（WebAudio API 已移除，此方法为空） */
 function stopAll() {
-  if (audioCtx) {
-    try {
-      audioCtx.close();
-    } catch (e) {}
-    audioCtx = null;
-  }
+  // InnerAudioContext 播放完即销毁，无需手动停止
 }
 
-/** 停止某音效（WebAudio 按名称无法精确停止，提供空实现保持兼容） */
 function stop(name) {
-  // 对于 WebAudio 的 BufferSource，一旦 play 就无法单独停止
-  // 这里通过重建 AudioContext 实现 stopAll 效果更可靠
+  // 短音效自动销毁，无需手动停止
 }
 
-/**
- * 预加载
- */
 function preload() {
   initSounds();
-  // 预热所有 buffer
-  Object.keys(RAW_SAMPLES).forEach(name => getBuffer(name));
+  // 预热所有 data URI
+  Object.keys(RAW_SAMPLES).forEach(name => getDataUri(name));
 }
 
 module.exports = {
