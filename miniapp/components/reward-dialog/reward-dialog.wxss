@@ -1,13 +1,41 @@
 /* components/reward-dialog/reward-dialog.wxss */
+
+/* 遮罩层 */
+.dialog-mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+  animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
 .reward-card {
   background: #FFFFFF;
   border-radius: 24rpx;
   padding: 50rpx 30rpx 30rpx;
-  margin: 0 50rpx;
   width: 580rpx;
+  max-height: 85vh;
+  overflow-y: auto;
   text-align: center;
-  box-shadow: 0 8rpx 32rpx rgba(0, 0, 0, 0.2);
+  box-shadow: 0 12rpx 48rpx rgba(0, 0, 0, 0.3);
   position: relative;
+  animation: cardIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes cardIn {
+  from { transform: scale(0.8); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
 }
 
 /* 关闭按钮 */
