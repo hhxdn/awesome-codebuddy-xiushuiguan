@@ -243,6 +243,8 @@ function genCombo(combo) {
 // ========== 音效资源（程序化生成） ==========
 const SOUNDS = {};
 let _initialized = false;
+const fs = wx.getFileSystemManager();
+const TMP_DIR = wx.env.USER_DATA_PATH + '/audio/';
 
 function initSounds() {
   if (_initialized) return;
@@ -259,6 +261,19 @@ function initSounds() {
   for (let c = 1; c <= 10; c++) {
     SOUNDS['COMBO_' + c] = genCombo(c);
   }
+  // 将 WAV 写入临时文件（InnerAudioContext 不支持 data: URI）
+  try { fs.accessSync(TMP_DIR); } catch (e) { fs.mkdirSync(TMP_DIR, true); }
+  const keys = Object.keys(SOUNDS);
+  keys.forEach(key => {
+    const filePath = TMP_DIR + key + '.wav';
+    try {
+      const base64 = SOUNDS[key].split(',')[1];
+      fs.writeFileSync(filePath, base64, 'base64');
+      SOUNDS[key] = filePath;
+    } catch (e) {
+      console.error('音效文件写入失败', key, e);
+    }
+  });
   _initialized = true;
 }
 
