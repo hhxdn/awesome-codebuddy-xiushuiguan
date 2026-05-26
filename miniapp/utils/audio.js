@@ -21,6 +21,9 @@ for (let c = 1; c <= 10; c++) {
 
 let globalVolume = 0.6;
 
+// 活跃的音频实例列表，用于 stopAll
+const _activeContexts = [];
+
 /**
  * 播放音效
  * @param {string} name - 音效名称
@@ -39,20 +42,37 @@ function play(name, options = {}) {
   }
 
   try {
-    const innerCtx = wx.createInnerAudioContext();
+    const innerCtx = wx.createInnerAudioContext({
+      useWebAudioImplement: true // 使用 Web Audio 实现，兼容性更好
+    });
     innerCtx.src = src;
     innerCtx.volume = options.volume !== undefined ? options.volume : globalVolume;
     innerCtx.loop = options.loop || false;
+    // 关键：不遵守手机静音开关，确保音效始终可播放
+    innerCtx.obeyMuteSwitch = false;
 
+    innerCtx.onCanplay(() => {
+      innerCtx.play();
+    });
     innerCtx.onEnded(() => {
+      const idx = _activeContexts.indexOf(innerCtx);
+      if (idx > -1) _activeContexts.splice(idx, 1);
       innerCtx.destroy();
     });
     innerCtx.onError((err) => {
-      console.error('[audio] 播放失败:', name, err);
+      console.error('[audio] 播放失败:', name, src, JSON.stringify(err));
+      const idx = _activeContexts.indexOf(innerCtx);
+      if (idx > -1) _activeContexts.splice(idx, 1);
       innerCtx.destroy();
     });
 
-    innerCtx.play();
+    _activeContexts.push(innerCtx);
+    // 限制同时存在的音频实例，防止过多叠加
+    while (_activeContexts.length > 8) {
+      const old = _activeContexts.shift();
+      try { old.destroy(); } catch (e) {}
+    }
+
     return innerCtx;
   } catch (e) {
     console.error('[audio] 创建播放器失败:', name, e);
@@ -70,10 +90,25 @@ function setVolume(volume) {
   globalVolume = Math.max(0, Math.min(1, volume));
 }
 
-/** 停止所有（InnerAudioContext 播完即销毁，无需手动停止） */
-function stopAll() {}
+/** 停止所有活跃音频 */
+function stopAll() {
+  while (_activeContexts.length > 0) {
+    const ctx = _activeContexts.shift();
+    try { ctx.destroy(); } catch (e) {}
+  }
+}
 
-function stop(name) {}
+function stop(name) {
+  // 按音效名停止对应的活跃实例
+  const src = SOUND_MAP[name];
+  if (!src) return;
+  for (let i = _activeContexts.length - 1; i >= 0; i--) {
+    if (_activeContexts[i].src && _activeContexts[i].src.indexOf(src) !== -1) {
+      try { _activeContexts[i].destroy(); } catch (e) {}
+      _activeContexts.splice(i, 1);
+    }
+  }
+}
 
 function preload() {
   // 小程序不支持传统预加载，无需处理
