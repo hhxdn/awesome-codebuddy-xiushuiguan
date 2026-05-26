@@ -32,12 +32,15 @@ App({
             header: { 'content-type': 'application/json' },
             success: (resp) => {
               if (resp.data && resp.data.code === 200) {
-                const data = resp.data.data;
-                this.globalData.token = data.token;
-                this.globalData.openid = data.openid;
-                this.globalData.userInfo = data.userInfo;
-                this.safeSetStorage('token', data.token);
-                this.safeSetStorage('userInfo', data.userInfo);
+                const user = resp.data.data;
+                // 后端返回的是User对象，作为userInfo存储
+                this.globalData.userInfo = user;
+                this.globalData.openid = user.openid || '';
+                // token暂存为openid（后续可扩展为JWT）
+                this.globalData.token = user.openid || '';
+                this.safeSetStorage('token', this.globalData.token);
+                this.safeSetStorage('userInfo', user);
+                console.log('登录成功，userId:', user.id);
               }
             },
             fail: (err) => {

@@ -2115,7 +2115,17 @@ Page({
 
   // 提交游戏结果
   submitResult(isWin, stars, timeUsed) {
-    const userInfo = app.globalData.userInfo || {}
+    // 尝试从 globalData 或本地缓存获取 userId
+    let userInfo = app.globalData.userInfo
+    if (!userInfo || !userInfo.id) {
+      try { userInfo = wx.getStorageSync('userInfo') || null } catch (e) {}
+    }
+    const userId = userInfo ? userInfo.id : null
+    if (!userId) {
+      console.warn('用户未登录，跳过提交游戏结果')
+      return
+    }
+
     const level = this.data.level
     // 更新本地最高关卡
     let savedLevel = 0
@@ -2127,7 +2137,7 @@ Page({
     // 提交到后端
     const request = require('../../utils/request')
     request.post('/api/game/result', {
-      userId: userInfo.id,
+      userId: userId,
       level,
       stars,
       timeUsed,
