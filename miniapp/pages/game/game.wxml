@@ -2,10 +2,6 @@
   <!-- 顶部状态栏 -->
   <view class="status-bar">
     <view class="status-item">
-      <text class="status-icon">⏱</text>
-      <text class="status-value {{timeLeft <= 10 ? 'danger' : ''}}">{{timeLeft}}s</text>
-    </view>
-    <view class="status-item">
       <text class="status-icon">🔧</text>
       <text class="status-value">{{wrenchCount}}</text>
     </view>
@@ -31,6 +27,12 @@
     <view class="buff-tag" wx:for="{{activeBuffsList}}" wx:key="key" style="background: {{item.color}};">
       <text>{{item.icon}} {{item.name}}</text>
     </view>
+  </view>
+
+  <!-- 倒计时大号显示 -->
+  <view class="countdown-overlay {{timeLeft <= 10 ? 'countdown-danger' : ''}}">
+    <text class="countdown-label">⏱ 剩余时间</text>
+    <text class="countdown-num">{{timeLeft}}s</text>
   </view>
 
   <!-- 游戏Canvas -->
