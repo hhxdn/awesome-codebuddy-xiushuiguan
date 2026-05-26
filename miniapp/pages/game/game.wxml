@@ -18,7 +18,7 @@
     </view>
   </view>
 
-  <!-- 倒计时 + 扳手 -->
+  <!-- 倒计时 + 扳手 + 金币 -->
   <view class="countdown-overlay {{timeLeft <= 10 ? 'countdown-danger' : ''}}">
     <view class="countdown-row">
       <view class="countdown-cell">
@@ -28,6 +28,10 @@
       <view class="countdown-cell">
         <text class="countdown-label">🔧 扳手</text>
         <text class="countdown-num wrench-num">{{wrenchCount}}</text>
+      </view>
+      <view class="countdown-cell">
+        <text class="countdown-label">🪙 金币</text>
+        <text class="countdown-num coin-num">{{totalCoins}}</text>
       </view>
     </view>
   </view>

@@ -149,13 +149,18 @@ Page({
   initLevel(level) {
     audio.stopAll()
     const config = levelUtil.getLevelConfig(level)
+    // 从 globalData 或缓存加载当前金币数
+    const userInfo = app.globalData.userInfo
+    const cachedCoins = app.safeGetStorage('totalCoins')
+    const currentCoins = (userInfo && userInfo.coins) ? userInfo.coins : (cachedCoins || 0)
     this.setData({
       level,
       levelConfig: config,
       timeLeft: config.timeLimit,
       wrenchCount: 0,
       hp: 100,
-      maxHp: 100
+      maxHp: 100,
+      totalCoins: currentCoins
     })
 
     // 先放车，再生成水管（让水管避开车辆位置）
@@ -2167,6 +2172,10 @@ Page({
           totalCoins: reward.totalCoins || 0,
           isFirstClear: reward.isFirstClear || false
         })
+        // 缓存金币数，供下次游戏显示
+        if (reward.totalCoins) {
+          app.safeSetStorage('totalCoins', reward.totalCoins)
+        }
       }
     }).catch(() => {
       // 提交失败不影响游戏体验

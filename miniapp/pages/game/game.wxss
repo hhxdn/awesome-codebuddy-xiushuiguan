@@ -113,8 +113,7 @@
 .countdown-row {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 80rpx;
+  justify-content: space-around;
   width: 100%;
 }
 
@@ -140,6 +139,10 @@
 
 .wrench-num {
   color: #FF9800;
+}
+
+.coin-num {
+  color: #FFB300;
 }
 
 .countdown-danger .countdown-label {
