@@ -160,7 +160,10 @@ Page({
       wrenchCount: 0,
       hp: 100,
       maxHp: 100,
-      totalCoins: currentCoins
+      totalCoins: currentCoins,
+      showVictory: false,
+      showDefeat: false,
+      showReward: false
     })
 
     // 先放车，再生成水管（让水管避开车辆位置）
@@ -604,6 +607,11 @@ Page({
 
     // 检查积水伤害
     this.checkWaterDamage()
+
+    // 定期复查胜利条件（每30帧≈0.5秒），防止 doRepair 漏检导致卡关
+    if (this.frameCount % 30 === 0) {
+      this.checkWinCondition()
+    }
   },
 
   // 检查积水伤害
@@ -2134,23 +2142,28 @@ Page({
 
   // 检查胜利条件
   checkWinCondition() {
-    const remainingLeaks = this.pipes.filter(p => p.isLeaking && !p.isRepaired)
-    if (remainingLeaks.length === 0) {
-      this.stopAllTimers()
-      const timeUsed = this.data.levelConfig.timeLimit - this.data.timeLeft
-      const stars = levelUtil.calcStars(timeUsed, this.data.levelConfig)
+    if (this.data.gameState !== STATE.PLAYING) return
+    try {
+      const remainingLeaks = this.pipes.filter(p => p.isLeaking && !p.isRepaired)
+      if (remainingLeaks.length === 0) {
+        this.stopAllTimers()
+        const timeUsed = this.data.levelConfig.timeLimit - this.data.timeLeft
+        const stars = levelUtil.calcStars(timeUsed, this.data.levelConfig)
 
-      audio.play('CLEAR')
+        audio.play('CLEAR')
 
-      this.setData({
-        gameState: STATE.WIN,
-        showVictory: true,
-        victoryStars: stars,
-        victoryTime: timeUsed
-      })
+        this.setData({
+          gameState: STATE.WIN,
+          showVictory: true,
+          victoryStars: stars,
+          victoryTime: timeUsed
+        })
 
-      // 提交结果到后端
-      this.submitResult(true, stars, timeUsed)
+        // 提交结果到后端
+        this.submitResult(true, stars, timeUsed)
+      }
+    } catch (e) {
+      console.error('[game] checkWinCondition 异常:', e)
     }
   },
 
