@@ -1,10 +1,6 @@
 <view class="game-page">
   <!-- 顶部状态栏 -->
   <view class="status-bar">
-    <view class="status-item">
-      <text class="status-icon">🔧</text>
-      <text class="status-value">{{wrenchCount}}</text>
-    </view>
     <view class="status-item hp-item">
       <text class="status-icon">❤️</text>
       <view class="hp-bar-bg">
@@ -31,8 +27,16 @@
 
   <!-- 倒计时大号显示 -->
   <view class="countdown-overlay {{timeLeft <= 10 ? 'countdown-danger' : ''}}">
-    <text class="countdown-label">⏱ 剩余时间</text>
-    <text class="countdown-num">{{timeLeft}}s</text>
+    <view class="countdown-row">
+      <view class="countdown-cell">
+        <text class="countdown-label">⏱ 剩余时间</text>
+        <text class="countdown-num">{{timeLeft}}s</text>
+      </view>
+      <view class="countdown-cell">
+        <text class="countdown-label">🔧 扳手</text>
+        <text class="countdown-num wrench-num">{{wrenchCount}}</text>
+      </view>
+    </view>
   </view>
 
   <!-- 游戏Canvas -->
